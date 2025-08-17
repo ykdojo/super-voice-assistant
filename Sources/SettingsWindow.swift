@@ -14,33 +14,11 @@ struct ModelInfo {
 }
 
 struct SettingsView: View {
-    @State private var selectedModel = "small.en"
+    @State private var selectedModel = "distil-large-v3"
     @State private var isDownloading = false
     @State private var downloadProgress: Double = 0.0
     
     let models = [
-        ModelInfo(
-            name: "small.en",
-            displayName: "Small English",
-            size: "244 MB",
-            speed: "~30x RT",
-            accuracy: "93%",
-            accuracyNote: "~7% WER on LibriSpeech test-clean dataset",
-            languages: "English only",
-            description: "Fastest option, great for quick dictation",
-            sourceURL: "https://github.com/openai/whisper#available-models-and-languages"
-        ),
-        ModelInfo(
-            name: "medium.en",
-            displayName: "Medium English",
-            size: "769 MB",
-            speed: "~12x RT",
-            accuracy: "95%",
-            accuracyNote: "~5% WER, 3x slower than small but more accurate",
-            languages: "English only",
-            description: "Better accuracy for longer or complex content",
-            sourceURL: "https://github.com/openai/whisper#available-models-and-languages"
-        ),
         ModelInfo(
             name: "distil-large-v3",
             displayName: "Distil Large v3",
@@ -48,8 +26,8 @@ struct SettingsView: View {
             speed: "~25x RT",
             accuracy: "96%",
             accuracyNote: "Within 1% WER of Large v3, 6.3x faster (Hugging Face)",
-            languages: "99 languages",
-            description: "Best speed/accuracy balance, multilingual support",
+            languages: "English only",
+            description: "Fastest high-accuracy option for English",
             sourceURL: "https://huggingface.co/distil-whisper/distil-large-v3#evaluation"
         ),
         ModelInfo(
@@ -147,8 +125,8 @@ struct SettingsView: View {
     }
     
     func checkIfModelDownloaded(_ modelName: String) -> Bool {
-        // Mock implementation - returns true for small.en model
-        return modelName == "small.en"
+        // Mock implementation - returns true for distil-large-v3 model
+        return modelName == "distil-large-v3"
     }
     
     func downloadModel(_ modelName: String) {

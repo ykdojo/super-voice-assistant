@@ -13,8 +13,12 @@ let package = Package(
             name: "SuperVoiceAssistant",
             targets: ["SuperVoiceAssistant"])
     ],
+    dependencies: [
+        .package(url: "https://github.com/sindresorhus/KeyboardShortcuts", from: "2.0.0")
+    ],
     targets: [
         .executableTarget(
-            name: "SuperVoiceAssistant")
+            name: "SuperVoiceAssistant",
+            dependencies: ["KeyboardShortcuts"])
     ]
 )

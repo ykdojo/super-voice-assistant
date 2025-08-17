@@ -35,4 +35,4 @@ All models work with the same WhisperKit code - just swap the model file.
 
 ## License
 
-Closed source - All rights reserved.
+All rights reserved.

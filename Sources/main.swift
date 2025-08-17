@@ -41,22 +41,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if let button = statusItem.button {
             if isRecording {
                 button.image = NSImage(systemSymbolName: "waveform.circle.fill", accessibilityDescription: "Recording")
-                // Flash the icon briefly for feedback
-                NSAnimationContext.runAnimationGroup({ context in
-                    context.duration = 0.2
-                    button.animator().alphaValue = 0.5
-                }, completionHandler: {
-                    button.animator().alphaValue = 1.0
-                })
                 print("🎤 Recording started...")
             } else {
                 button.image = NSImage(systemSymbolName: "waveform", accessibilityDescription: "Voice Assistant")
                 print("⏹ Recording stopped")
             }
         }
-        
-        // Play system sound for feedback
-        NSSound.beep()
     }
 }
 

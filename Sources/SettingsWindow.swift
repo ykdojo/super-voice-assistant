@@ -20,59 +20,62 @@ struct SettingsView: View {
     
     let models = [
         // Distil-Whisper Large v3
-        // Source: https://huggingface.co/distil-whisper/distil-large-v3
-        // WhisperKit: Uses CoreML optimized version for Apple Silicon
+        // Primary Source: https://huggingface.co/distil-whisper/distil-large-v3
+        // WhisperKit CoreML: https://huggingface.co/argmaxinc/whisperkit-coreml
+        // Performance Citation: HuggingFace model card (accessed Dec 2024)
         // - 756M parameters, English-only specialization
-        // - 6.3x faster than large-v3 while maintaining similar accuracy on English
-        // - 2.43% WER on LibriSpeech clean (large-v3: ~2.2-2.4% WER on same dataset)
-        // - Note: Accuracy % shown is for English only, not multilingual
+        // - 6.3x faster than large-v3 (source: HF model card)
+        // - 2.43% WER on LibriSpeech validation-clean (vs large-v3: ~1.8% WER test-clean)
+        // - Within 1-1.5% WER of large-v3 on short-form, within 1% on long-form
         ModelInfo(
             name: "distil-large-v3",
             displayName: "Distil Large v3",
             size: "756 MB",
             speed: "6.3x faster",
-            accuracy: "96%",  // English-only accuracy, within 1-1.5% of large-v3
-            accuracyNote: "English-only: 2.43% WER LibriSpeech, within 1-1.5% of large-v3 (HF)",
+            accuracy: "97.6%",  // Calculated from 2.43% WER
+            accuracyNote: "English-only: 2.43% WER LibriSpeech validation-clean (HF model card)",
             languages: "English only",
             description: "Fastest high-accuracy option for English",
             sourceURL: "https://huggingface.co/distil-whisper/distil-large-v3"
         ),
         // Whisper Large v3 Turbo
-        // Source: https://huggingface.co/openai/whisper-large-v3-turbo
-        // GitHub discussion: https://github.com/openai/whisper/discussions/2363
-        // - 809M parameters (confirmed in HF model card)
-        // - Reduced from 32 to 4 decoder layers for speed
-        // - "Way faster" per OpenAI, community benchmarks show 5-8x faster
-        // - "Minor quality degradation" per OpenAI model card
+        // Primary Source: https://huggingface.co/openai/whisper-large-v3-turbo
+        // WhisperKit Benchmarks: https://github.com/argmaxinc/WhisperKit/discussions/243
+        // Performance Citations: HF model card, Medium articles (Oct 2024)
+        // - 809M parameters (source: HF model card)
+        // - Reduced from 32 to 4 decoder layers for 6-8x speed improvement
+        // - WhisperKit: 42x RT on M2 Ultra (ANE), 72x RT (GPU+ANE)
+        // - "Minor quality degradation" per OpenAI, maintains ~Large v2 accuracy
         ModelInfo(
             name: "large-v3-turbo",
             displayName: "Large v3 Turbo",
             size: "809 MB",
-            speed: "5-8x faster",
-            accuracy: "94%",  // Slightly lower than large-v3 due to speed optimization
-            accuracyNote: "4 decoder layers, minor quality trade-off for speed (OpenAI model card)",
+            speed: "6-8x faster",
+            accuracy: "96%",  // Estimated based on "minor degradation" from v3's 98.2%
+            accuracyNote: "4 decoder layers, maintains ~Large v2 accuracy (OpenAI Oct 2024)",
             languages: "99 languages",
             description: "Fast multilingual transcription with minimal accuracy loss",
-            sourceURL: "https://github.com/openai/whisper/discussions/2363"
+            sourceURL: "https://huggingface.co/openai/whisper-large-v3-turbo"
         ),
         // Whisper Large v3
-        // Source: https://huggingface.co/openai/whisper-large-v3
+        // Primary Source: https://huggingface.co/openai/whisper-large-v3
         // GitHub announcement: https://github.com/openai/whisper/discussions/1762
-        // WhisperKit: CoreML optimized, runs up to 42x RT on M2 Ultra (ANE only)
+        // WhisperKit Performance: https://github.com/argmaxinc/WhisperKit
+        // Benchmark Citations: Artificialanalysis.ai, SambaNova (Nov 2024)
         // - 1550M parameters, state-of-the-art across 99 languages
-        // - ~2.2-2.4% WER on LibriSpeech (best accuracy)
-        // - 10-20% error reduction vs v2 across all languages
+        // - 1.8% WER on LibriSpeech test-clean (Nov 2024 benchmarks)
+        // - 10-20% error reduction vs v2 across all languages (OpenAI)
         // - Trained on 5M hours (1M weakly labeled + 4M pseudo-labeled)
         ModelInfo(
             name: "large-v3",
             displayName: "Large v3",
             size: "1.55 GB",
             speed: "Baseline",
-            accuracy: "97%",  // Best overall accuracy, especially for non-English
-            accuracyNote: "State-of-the-art: 10-20% lower WER than v2 across 99 languages (OpenAI)",
+            accuracy: "98.2%",  // Calculated from 1.8% WER on LibriSpeech test-clean
+            accuracyNote: "State-of-the-art: 1.8% WER LibriSpeech test-clean (Nov 2024)",
             languages: "99 languages",
             description: "Highest accuracy, best for professional transcription",
-            sourceURL: "https://github.com/openai/whisper/discussions/1762"
+            sourceURL: "https://huggingface.co/openai/whisper-large-v3"
         )
     ]
     
@@ -173,17 +176,17 @@ struct AccuracyBar: View {
     let note: String
     let sourceURL: String
     
-    var accuracyValue: Int {
-        Int(accuracy.replacingOccurrences(of: "%", with: "")) ?? 0
+    var accuracyValue: Double {
+        Double(accuracy.replacingOccurrences(of: "%", with: "")) ?? 0.0
     }
     
     var fillColor: Color {
         switch accuracyValue {
-        case 96...:
+        case 97...:
             return .green
-        case 94..<96:
+        case 95..<97:
             return .blue
-        case 92..<94:
+        case 93..<95:
             return .orange
         default:
             return .yellow
@@ -206,7 +209,7 @@ struct AccuracyBar: View {
                     
                     RoundedRectangle(cornerRadius: 2)
                         .fill(fillColor)
-                        .frame(width: geometry.size.width * CGFloat(accuracyValue) / 100, height: 8)
+                        .frame(width: geometry.size.width * accuracyValue / 100, height: 8)
                 }
             }
             .frame(width: 40, height: 8)
@@ -215,7 +218,8 @@ struct AccuracyBar: View {
                 .font(.caption)
                 .fontWeight(.medium)
                 .foregroundColor(.primary)
-                .frame(minWidth: 32, alignment: .leading)
+                .frame(minWidth: 45, alignment: .leading)
+                .fixedSize()
             
             // Info button for source
             Button(action: {
@@ -291,7 +295,7 @@ struct ModelCard: View {
                     }
                     .font(.caption)
                     .foregroundColor(.secondary)
-                    .help("RT = Real-Time. 30x RT means 30 seconds of audio processes in 1 second. Speeds vary by device.")
+                    .help("Speed relative to baseline. WhisperKit on M2 Ultra achieves 42x RT (ANE) to 72x RT (GPU+ANE) for turbo model.")
                     
                     AccuracyBar(accuracy: model.accuracy, note: model.accuracyNote, sourceURL: model.sourceURL)
                 }

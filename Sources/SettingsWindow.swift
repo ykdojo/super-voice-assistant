@@ -19,6 +19,12 @@ struct SettingsView: View {
     @State private var downloadProgress: Double = 0.0
     
     let models = [
+        // Distil-Whisper Large v3
+        // Source: https://huggingface.co/distil-whisper/distil-large-v3
+        // - 756M parameters, English-only
+        // - 6.3x faster than large-v3 per official model card
+        // - Within 1.5% WER of large-v3 on short-form, within 1% on long-form
+        // - 2.43% WER on LibriSpeech validation = ~97.5% accuracy
         ModelInfo(
             name: "distil-large-v3",
             displayName: "Distil Large v3",
@@ -30,17 +36,29 @@ struct SettingsView: View {
             description: "Fastest high-accuracy option for English",
             sourceURL: "https://huggingface.co/distil-whisper/distil-large-v3"
         ),
+        // Whisper Large v3 Turbo
+        // Source: https://huggingface.co/openai/whisper-large-v3-turbo
+        // - 809M parameters per HuggingFace model card
+        // - Reduced from 32 to 4 decoder layers
+        // - Speed: "way faster" per OpenAI, benchmarks show ~6x faster than large-v3
+        // - Accuracy comparable to large-v2 (not v3), ~4-5% WER average
         ModelInfo(
             name: "large-v3-turbo",
             displayName: "Large v3 Turbo",
-            size: "798 MB",
-            speed: "8x faster",
+            size: "809 MB",  // Fixed: was 798 MB, actually 809M parameters
+            speed: "6x faster",  // Fixed: was "8x", benchmarks show ~6x
             accuracy: "95%",
             accuracyNote: "Similar to large-v2 performance, 4 decoder layers (OpenAI)",
             languages: "99 languages",
             description: "Fast multilingual transcription with minimal accuracy loss",
             sourceURL: "https://github.com/openai/whisper/discussions/2363"
         ),
+        // Whisper Large v3
+        // Source: https://github.com/openai/whisper
+        // - 1550M parameters = 1.55 GB
+        // - Baseline speed for comparisons
+        // - 10-20% lower WER than v2 per OpenAI blog
+        // - State-of-the-art accuracy across 99 languages
         ModelInfo(
             name: "large-v3",
             displayName: "Large v3",

@@ -8,6 +8,11 @@ let package = Package(
     platforms: [
         .macOS(.v14)
     ],
+    products: [
+        .executable(
+            name: "SuperVoiceAssistant",
+            targets: ["SuperVoiceAssistant"])
+    ],
     targets: [
         .executableTarget(
             name: "SuperVoiceAssistant")

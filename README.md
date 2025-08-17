@@ -13,40 +13,25 @@ Press a global hotkey → Speak → Text appears at cursor position.
 - Runs fully offline
 
 ## Tech Stack
-- **Language**: Swift (possibly C++ for Whisper integration)
+- **Language**: Swift
+- **Speech Recognition**: WhisperKit (native Swift package)
 
-## Model Options
+## Model Strategy
 
-### Recommended: Whisper-based Models
-Based on 2024 benchmarks, Whisper models dominate in accuracy, especially for noisy environments and diverse accents.
+### Implementation: WhisperKit
+Native Swift implementation optimized for Apple Silicon. Can run any Whisper-compatible model.
 
-#### WhisperKit (Best for Mac)
-**Pros**: Native Swift, optimized for Apple Silicon, Core ML acceleration
-**Cons**: Newer, less tested
-**Recommendation**: Start here for Mac-native performance
+### Models to Use
+1. **Start with**: Whisper Base (150MB) - Fast, good for testing
+2. **For English speed**: Distil-Whisper (6x faster, English only)
+3. **For best quality**: Whisper Small (500MB) or Medium (1.5GB)
 
-#### Whisper.cpp
-**Pros**: Fast C++ implementation, good Apple Silicon support
-**Cons**: Requires C++ integration
-**Recommendation**: Alternative if WhisperKit has issues
+All models work with the same WhisperKit code - just swap the model file.
 
-#### Distil-Whisper (English-only speed)
-**Pros**: 6x faster than original, 49% smaller, only 1% accuracy loss
-**Cons**: English only
-**Recommendation**: Best for English-only dictation with speed priority
-
-#### OpenAI Whisper (Original)
-**Pros**: Best accuracy, widely supported, many model sizes
-**Cons**: Can be slower, larger models need more RAM
-**Model sizes**: Base (150MB), Small (500MB), Medium (1.5GB), Large (3GB)
-
-### Not Recommended: Non-Whisper Alternatives
-These alternatives generally underperform Whisper for dictation use cases:
-
-- **Vosk**: 2-3x higher error rate, too inaccurate for dictation
-- **SpeechBrain/Kaldi**: Too complex for simple app
-- **Wav2vec 2.0**: Not optimized for real-time
-- **NeMo**: Requires NVIDIA GPU (Macs don't have them)
+### Why Not Others?
+- **whisper.cpp**: Requires C++ bridging, WhisperKit is native Swift
+- **Original Whisper**: Python-based, too slow for real-time
+- **Non-Whisper models** (Vosk, Kaldi, etc.): Lower accuracy based on 2024 benchmarks
 
 ## License
 

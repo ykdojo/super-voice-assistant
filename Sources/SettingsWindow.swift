@@ -17,65 +17,65 @@ struct SettingsView: View {
     @State private var selectedModel = "distil-large-v3"
     @State private var isDownloading = false
     @State private var downloadProgress: Double = 0.0
+    @State private var downloadingModel: String? = nil
     
     let models = [
         // Distil-Whisper Large v3
         // Primary Source: https://huggingface.co/distil-whisper/distil-large-v3
         // WhisperKit CoreML: https://huggingface.co/argmaxinc/whisperkit-coreml
-        // Performance Citation: HuggingFace model card (accessed Dec 2024)
+        // Performance Citation: HuggingFace model card (accessed Jan 2025)
         // - 756M parameters, English-only specialization
         // - 6.3x faster than large-v3 (source: HF model card)
-        // - 2.43% WER on LibriSpeech validation-clean (vs large-v3: ~1.8% WER test-clean)
-        // - Within 1-1.5% WER of large-v3 on short-form, within 1% on long-form
+        // - 2.43% WER on LibriSpeech validation-clean
+        // - Within 1.5% WER of large-v3 on short-form, within 1% on long-form
         ModelInfo(
             name: "distil-large-v3",
             displayName: "Distil Large v3",
             size: "756 MB",
             speed: "6.3x faster",
-            accuracy: "97.6%",  // Calculated from 2.43% WER
-            accuracyNote: "English-only: 2.43% WER LibriSpeech validation-clean (HF model card)",
+            accuracy: "97.6%",  // Calculated from 2.43% WER validation-clean
+            accuracyNote: "English-only: 2.43% WER LibriSpeech validation-clean (HF model card Jan 2025)",
             languages: "English only",
             description: "Fastest high-accuracy option for English",
             sourceURL: "https://huggingface.co/distil-whisper/distil-large-v3"
         ),
         // Whisper Large v3 Turbo
         // Primary Source: https://huggingface.co/openai/whisper-large-v3-turbo
-        // WhisperKit Benchmarks: https://github.com/argmaxinc/WhisperKit/discussions/243
-        // Performance Citations: HF model card, Medium articles (Oct 2024)
+        // Release Announcement: https://github.com/openai/whisper/discussions/2363 (Oct 1, 2024)
+        // WhisperKit Benchmarks: https://twitter.com/zachnagengast (Jan 2025)
         // - 809M parameters (source: HF model card)
-        // - Reduced from 32 to 4 decoder layers for 6-8x speed improvement
-        // - WhisperKit: 42x RT on M2 Ultra (ANE), 72x RT (GPU+ANE)
-        // - "Minor quality degradation" per OpenAI, maintains ~Large v2 accuracy
+        // - Reduced from 32 to 4 decoder layers for significant speed improvement
+        // - WhisperKit: 107x real-time on M2 Ultra (processes 10 min audio in <6 seconds)
+        // - Performs similarly to large-v2 across languages
         ModelInfo(
             name: "large-v3-turbo",
             displayName: "Large v3 Turbo",
             size: "809 MB",
-            speed: "6-8x faster",
-            accuracy: "96%",  // Estimated based on "minor degradation" from v3's 98.2%
-            accuracyNote: "4 decoder layers, maintains ~Large v2 accuracy (OpenAI Oct 2024)",
-            languages: "99 languages", // Note: v3-turbo maintained 99 languages from v2
+            speed: "8x faster",
+            accuracy: "~96%",  // Similar to large-v2 performance
+            accuracyNote: "4 decoder layers, similar to large-v2 accuracy (OpenAI Oct 1, 2024)",
+            languages: "99 languages",
             description: "Fast multilingual transcription with minimal accuracy loss",
-            sourceURL: "https://huggingface.co/openai/whisper-large-v3-turbo"
+            sourceURL: "https://huggingface.co/openai/whisper-large-v3-turbo"  // Official model card
         ),
         // Whisper Large v3
         // Primary Source: https://huggingface.co/openai/whisper-large-v3
+        // Benchmark Citation: Aqua Voice Blog (Nov 2024): https://withaqua.com/blog/benchmark-nov-2024
         // GitHub announcement: https://github.com/openai/whisper/discussions/1762
-        // WhisperKit Performance: https://github.com/argmaxinc/WhisperKit
-        // Benchmark Citations: Artificialanalysis.ai, SambaNova (Nov 2024)
-        // - 1550M parameters, state-of-the-art across 99 languages
-        // - 1.8% WER on LibriSpeech test-clean (Nov 2024 benchmarks)
+        // - 1.54B parameters (source: HF model card)
+        // - 1.80% WER on LibriSpeech test-clean (Aqua Voice benchmark Nov 2024)
         // - 10-20% error reduction vs v2 across all languages (OpenAI)
         // - Trained on 5M hours (1M weakly labeled + 4M pseudo-labeled)
         ModelInfo(
             name: "large-v3",
             displayName: "Large v3",
-            size: "1.55 GB",
+            size: "1.54 GB",
             speed: "Baseline",
-            accuracy: "98.2%",  // Calculated from 1.8% WER on LibriSpeech test-clean
-            accuracyNote: "State-of-the-art: 1.8% WER LibriSpeech test-clean (Nov 2024)",
-            languages: "100 languages", // Note: v3 expanded from 99 to 100 languages (Nov 2023)
+            accuracy: "98.2%",  // Calculated from 1.80% WER on LibriSpeech test-clean
+            accuracyNote: "State-of-the-art: 1.80% WER LibriSpeech test-clean (Aqua Voice Nov 2024)",
+            languages: "99 languages",
             description: "Highest accuracy, best for professional transcription",
-            sourceURL: "https://huggingface.co/openai/whisper-large-v3"
+            sourceURL: "https://huggingface.co/openai/whisper-large-v3"  // Official model card
         )
     ]
     
@@ -104,6 +104,8 @@ struct SettingsView: View {
                             model: model,
                             isSelected: selectedModel == model.name,
                             isDownloaded: checkIfModelDownloaded(model.name),
+                            isDownloading: downloadingModel == model.name,
+                            downloadProgress: downloadingModel == model.name ? downloadProgress : 0,
                             onSelect: {
                                 selectedModel = model.name
                             },
@@ -120,18 +122,9 @@ struct SettingsView: View {
             
             // Footer with current status
             HStack {
-                if isDownloading {
-                    ProgressView(value: downloadProgress)
-                        .progressViewStyle(.linear)
-                        .frame(width: 200)
-                    Text("Downloading...")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                } else {
-                    Label("Current model: \(currentModelDisplay)", systemImage: "checkmark.circle.fill")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
+                Label("Current model: \(currentModelDisplay)", systemImage: "checkmark.circle.fill")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
                 
                 Spacer()
                 
@@ -157,6 +150,7 @@ struct SettingsView: View {
     func downloadModel(_ modelName: String) {
         print("Downloading model: \(modelName)")
         isDownloading = true
+        downloadingModel = modelName
         downloadProgress = 0.0
         
         // Mock download progress
@@ -165,6 +159,7 @@ struct SettingsView: View {
             if downloadProgress >= 1.0 {
                 timer.invalidate()
                 isDownloading = false
+                downloadingModel = nil
                 downloadProgress = 0.0
             }
         }
@@ -177,7 +172,12 @@ struct AccuracyBar: View {
     let sourceURL: String
     
     var accuracyValue: Double {
-        Double(accuracy.replacingOccurrences(of: "%", with: "")) ?? 0.0
+        // Remove both tilde and percentage sign for parsing
+        let cleanedAccuracy = accuracy
+            .replacingOccurrences(of: "~", with: "")
+            .replacingOccurrences(of: "%", with: "")
+            .trimmingCharacters(in: .whitespaces)
+        return Double(cleanedAccuracy) ?? 0.0
     }
     
     var fillColor: Color {
@@ -242,6 +242,8 @@ struct ModelCard: View {
     let model: ModelInfo
     let isSelected: Bool
     let isDownloaded: Bool
+    let isDownloading: Bool
+    let downloadProgress: Double
     let onSelect: () -> Void
     let onDownload: () -> Void
     
@@ -295,7 +297,7 @@ struct ModelCard: View {
                     }
                     .font(.caption)
                     .foregroundColor(.secondary)
-                    .help("Speed relative to baseline. WhisperKit on M2 Ultra achieves 42x RT (ANE) to 72x RT (GPU+ANE) for turbo model.")
+                    .help("Speed relative to baseline. See https://huggingface.co/spaces/argmaxinc/whisperkit-benchmarks for detailed performance metrics.")
                     
                     AccuracyBar(accuracy: model.accuracy, note: model.accuracyNote, sourceURL: model.sourceURL)
                 }
@@ -305,9 +307,23 @@ struct ModelCard: View {
             
             // Download button or status
             if isDownloaded {
-                Text("Downloaded")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                HStack {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.green)
+                    Text("Downloaded")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            } else if isDownloading {
+                HStack(spacing: 8) {
+                    ProgressView(value: downloadProgress)
+                        .progressViewStyle(.linear)
+                        .frame(width: 80)
+                    Text("\(Int(downloadProgress * 100))%")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .frame(width: 35)
+                }
             } else {
                 Button(action: onDownload) {
                     Label("Download", systemImage: "arrow.down.circle")

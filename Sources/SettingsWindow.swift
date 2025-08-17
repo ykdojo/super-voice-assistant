@@ -53,7 +53,7 @@ struct SettingsView: View {
             speed: "6-8x faster",
             accuracy: "96%",  // Estimated based on "minor degradation" from v3's 98.2%
             accuracyNote: "4 decoder layers, maintains ~Large v2 accuracy (OpenAI Oct 2024)",
-            languages: "99 languages",
+            languages: "99 languages", // Note: v3-turbo maintained 99 languages from v2
             description: "Fast multilingual transcription with minimal accuracy loss",
             sourceURL: "https://huggingface.co/openai/whisper-large-v3-turbo"
         ),
@@ -73,7 +73,7 @@ struct SettingsView: View {
             speed: "Baseline",
             accuracy: "98.2%",  // Calculated from 1.8% WER on LibriSpeech test-clean
             accuracyNote: "State-of-the-art: 1.8% WER LibriSpeech test-clean (Nov 2024)",
-            languages: "99 languages",
+            languages: "100 languages", // Note: v3 expanded from 99 to 100 languages (Nov 2023)
             description: "Highest accuracy, best for professional transcription",
             sourceURL: "https://huggingface.co/openai/whisper-large-v3"
         )

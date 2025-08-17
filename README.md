@@ -8,40 +8,31 @@ Press a global hotkey → Speak → Text appears at cursor position.
 
 ## Core Features
 - Global hotkey (Shift+Alt+Z) to start/stop recording
-- Transcribe speech using Whisper or different models
+- Transcribe speech using WhisperKit
 - Insert text at cursor position
 - Runs fully offline
 
 ## Tech Stack
 - **Language**: Swift
+- **UI Framework**: Cocoa (AppKit)
 - **Speech Recognition**: WhisperKit (native Swift package)
+- **Global Hotkeys**: KeyboardShortcuts library
 
-## Model Strategy
+## Building and Running
 
-### Implementation: WhisperKit
-Native Swift implementation optimized for Apple Silicon. Can run any Whisper-compatible model.
+```bash
+# Build the app
+swift build
 
-### Models to Use
-1. **Start with**: Whisper Base (150MB) - Fast, good for testing
-2. **For English speed**: Distil-Whisper (6x faster, English only)
-3. **For best quality**: Whisper Small (500MB) or Medium (1.5GB)
+# Run the app
+swift run
+```
 
-All models work with the same WhisperKit code - just swap the model file.
+The app runs in the menu bar (look for the waveform icon).
 
-### Why Not Others?
-- **whisper.cpp**: Requires C++ bridging, WhisperKit is native Swift
-- **Original Whisper**: Python-based, too slow for real-time
-- **Non-Whisper models** (Vosk, Kaldi, etc.): Lower accuracy based on 2024 benchmarks
-
-## Next Steps
-
-1. Create Xcode project (macOS app)
-2. Add WhisperKit via Swift Package Manager
-3. Implement menu bar presence
-4. Add global hotkey registration for Shift+Alt+Z
-5. Basic audio recording
-6. Integrate WhisperKit transcription
-7. Output to clipboard (then cursor position later)
+## Project Structure
+- `Sources/main.swift` - Main app entry point with menu bar implementation
+- `Package.swift` - Swift package configuration
 
 ## License
 

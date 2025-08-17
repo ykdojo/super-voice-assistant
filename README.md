@@ -33,6 +33,16 @@ All models work with the same WhisperKit code - just swap the model file.
 - **Original Whisper**: Python-based, too slow for real-time
 - **Non-Whisper models** (Vosk, Kaldi, etc.): Lower accuracy based on 2024 benchmarks
 
+## Next Steps
+
+1. Create Xcode project (macOS app)
+2. Add WhisperKit via Swift Package Manager
+3. Implement menu bar presence
+4. Add global hotkey registration for Shift+Alt+Z
+5. Basic audio recording
+6. Integrate WhisperKit transcription
+7. Output to clipboard (then cursor position later)
+
 ## License
 
 All rights reserved.

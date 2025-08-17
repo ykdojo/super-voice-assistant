@@ -7,7 +7,7 @@ A simple macOS dictation app with global hotkey support for voice transcription.
 Press a global hotkey → Speak → Text appears at cursor position.
 
 ## Core Features
-- Global hotkey (e.g., Cmd+Shift+Space) to start/stop recording
+- Global hotkey (Shift+Alt+Z) to start/stop recording
 - Transcribe speech using Whisper or different models
 - Insert text at cursor position
 - Runs fully offline

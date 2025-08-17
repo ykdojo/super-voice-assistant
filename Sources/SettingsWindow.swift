@@ -21,51 +21,55 @@ struct SettingsView: View {
     let models = [
         // Distil-Whisper Large v3
         // Source: https://huggingface.co/distil-whisper/distil-large-v3
-        // - 756M parameters, English-only
-        // - 6.3x faster than large-v3 per official model card
-        // - Within 1.5% WER of large-v3 on short-form, within 1% on long-form
-        // - 2.43% WER on LibriSpeech validation = ~97.5% accuracy
+        // WhisperKit: Uses CoreML optimized version for Apple Silicon
+        // - 756M parameters, English-only specialization
+        // - 6.3x faster than large-v3 while maintaining similar accuracy on English
+        // - 2.43% WER on LibriSpeech clean (large-v3: ~2.2-2.4% WER on same dataset)
+        // - Note: Accuracy % shown is for English only, not multilingual
         ModelInfo(
             name: "distil-large-v3",
             displayName: "Distil Large v3",
             size: "756 MB",
             speed: "6.3x faster",
-            accuracy: "96%",
-            accuracyNote: "Within 1.5% WER of Large v3, optimized for English (Hugging Face)",
+            accuracy: "96%",  // English-only accuracy, within 1-1.5% of large-v3
+            accuracyNote: "English-only: 2.43% WER LibriSpeech, within 1-1.5% of large-v3 (HF)",
             languages: "English only",
             description: "Fastest high-accuracy option for English",
             sourceURL: "https://huggingface.co/distil-whisper/distil-large-v3"
         ),
         // Whisper Large v3 Turbo
         // Source: https://huggingface.co/openai/whisper-large-v3-turbo
-        // - 809M parameters per HuggingFace model card
-        // - Reduced from 32 to 4 decoder layers
-        // - Speed: "way faster" per OpenAI, benchmarks show ~6x faster than large-v3
-        // - Accuracy comparable to large-v2 (not v3), ~4-5% WER average
+        // GitHub discussion: https://github.com/openai/whisper/discussions/2363
+        // - 809M parameters (confirmed in HF model card)
+        // - Reduced from 32 to 4 decoder layers for speed
+        // - "Way faster" per OpenAI, community benchmarks show 5-8x faster
+        // - "Minor quality degradation" per OpenAI model card
         ModelInfo(
             name: "large-v3-turbo",
             displayName: "Large v3 Turbo",
-            size: "809 MB",  // Fixed: was 798 MB, actually 809M parameters
-            speed: "6x faster",  // Fixed: was "8x", benchmarks show ~6x
-            accuracy: "95%",
-            accuracyNote: "Similar to large-v2 performance, 4 decoder layers (OpenAI)",
+            size: "809 MB",
+            speed: "5-8x faster",
+            accuracy: "94%",  // Slightly lower than large-v3 due to speed optimization
+            accuracyNote: "4 decoder layers, minor quality trade-off for speed (OpenAI model card)",
             languages: "99 languages",
             description: "Fast multilingual transcription with minimal accuracy loss",
             sourceURL: "https://github.com/openai/whisper/discussions/2363"
         ),
         // Whisper Large v3
-        // Source: https://github.com/openai/whisper
-        // - 1550M parameters = 1.55 GB
-        // - Baseline speed for comparisons
-        // - 10-20% lower WER than v2 per OpenAI blog
-        // - State-of-the-art accuracy across 99 languages
+        // Source: https://huggingface.co/openai/whisper-large-v3
+        // GitHub announcement: https://github.com/openai/whisper/discussions/1762
+        // WhisperKit: CoreML optimized, runs up to 42x RT on M2 Ultra (ANE only)
+        // - 1550M parameters, state-of-the-art across 99 languages
+        // - ~2.2-2.4% WER on LibriSpeech (best accuracy)
+        // - 10-20% error reduction vs v2 across all languages
+        // - Trained on 5M hours (1M weakly labeled + 4M pseudo-labeled)
         ModelInfo(
             name: "large-v3",
             displayName: "Large v3",
             size: "1.55 GB",
             speed: "Baseline",
-            accuracy: "97%",
-            accuracyNote: "State-of-the-art: 10-20% lower WER than v2 (OpenAI)",
+            accuracy: "97%",  // Best overall accuracy, especially for non-English
+            accuracyNote: "State-of-the-art: 10-20% lower WER than v2 across 99 languages (OpenAI)",
             languages: "99 languages",
             description: "Highest accuracy, best for professional transcription",
             sourceURL: "https://github.com/openai/whisper/discussions/1762"

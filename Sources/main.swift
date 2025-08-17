@@ -148,8 +148,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if let button = statusItem.button {
             button.image = nil
             
-            // Convert dB to a 0-1 range (assuming -60dB to 0dB range)
-            let normalizedLevel = max(0, min(1, (db + 60) / 60))
+            // Convert dB to a 0-1 range (assuming -50dB to -20dB for normal speech)
+            let normalizedLevel = max(0, min(1, (db + 50) / 30))
             
             // Create a visual bar using Unicode block characters
             let barLength = 8
@@ -164,7 +164,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             }
             
-            button.title = "🎤 " + bar
+            button.title = "● " + bar
         }
     }
 }

@@ -6,9 +6,10 @@
 - [x] Quit menu
 - [x] Global hotkey support (Shift+Alt+Z)
 - [x] Visual feedback with icon animation
+- [x] Audio recording with mic permissions
+- [x] Real-time audio level meter display
 
 ## Next Steps 📝
-- [ ] Audio recording with mic permissions
 - [ ] WhisperKit integration for transcription
 - [ ] Output to clipboard
 - [ ] Insert at cursor position

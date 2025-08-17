@@ -14,11 +14,12 @@ let package = Package(
             targets: ["SuperVoiceAssistant"])
     ],
     dependencies: [
-        .package(url: "https://github.com/sindresorhus/KeyboardShortcuts", from: "2.0.0")
+        .package(url: "https://github.com/sindresorhus/KeyboardShortcuts", from: "2.0.0"),
+        .package(url: "https://github.com/argmaxinc/WhisperKit", from: "0.13.0")
     ],
     targets: [
         .executableTarget(
             name: "SuperVoiceAssistant",
-            dependencies: ["KeyboardShortcuts"])
+            dependencies: ["KeyboardShortcuts", "WhisperKit"])
     ]
 )

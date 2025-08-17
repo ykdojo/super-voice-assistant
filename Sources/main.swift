@@ -1,4 +1,5 @@
 import Cocoa
+import SwiftUI
 import KeyboardShortcuts
 import AVFoundation
 
@@ -9,6 +10,7 @@ extension KeyboardShortcuts.Name {
 class AppDelegate: NSObject, NSApplicationDelegate {
     var statusItem: NSStatusItem!
     var isRecording = false
+    var settingsWindow: SettingsWindowController?
     
     private var audioEngine: AVAudioEngine!
     private var inputNode: AVAudioInputNode!
@@ -27,6 +29,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Create menu
         let menu = NSMenu()
         menu.addItem(NSMenuItem(title: "Recording: Press Shift+Alt+Z", action: nil, keyEquivalent: ""))
+        menu.addItem(NSMenuItem.separator())
+        menu.addItem(NSMenuItem(title: "Settings...", action: #selector(openSettings), keyEquivalent: ","))
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         statusItem.menu = menu
@@ -71,6 +75,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         alert.alertStyle = .warning
         alert.addButton(withTitle: "OK")
         alert.runModal()
+    }
+    
+    @objc func openSettings() {
+        if settingsWindow == nil {
+            settingsWindow = SettingsWindowController()
+        }
+        settingsWindow?.showWindow()
     }
     
     func toggleRecording() {

@@ -5,7 +5,7 @@ import Hub
 
 @MainActor
 struct SettingsView: View {
-    @State private var selectedModel = "distil-large-v3"
+    @State private var selectedModel: String? = nil
     @State private var downloadingModels: Set<String> = []
     @State private var downloadProgress: [String: Double] = [:]
     @State private var downloadedModels: Set<String> = []
@@ -42,7 +42,9 @@ struct SettingsView: View {
                             downloadProgress: downloadProgress[model.name] ?? 0,
                             downloadError: downloadErrors[model.name],
                             onSelect: {
-                                selectedModel = model.name
+                                if checkIfModelDownloaded(model.name) {
+                                    selectedModel = model.name
+                                }
                             },
                             onDownload: {
                                 downloadModel(model.name)
@@ -58,9 +60,19 @@ struct SettingsView: View {
             
             // Footer with current status
             HStack {
-                Label("Current model: \(currentModelDisplay)", systemImage: "checkmark.circle.fill")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                if downloadedModels.isEmpty {
+                    Label("Download a model to get started", systemImage: "arrow.down.circle")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                } else if let selected = selectedModel {
+                    Label("Current model: \(models.first(where: { $0.name == selected })?.displayName ?? "None")", systemImage: "checkmark.circle.fill")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                } else {
+                    Label("Select a downloaded model", systemImage: "cursorarrow.click")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
                 
                 Spacer()
                 
@@ -79,9 +91,6 @@ struct SettingsView: View {
         }
     }
     
-    var currentModelDisplay: String {
-        models.first(where: { $0.name == selectedModel })?.displayName ?? "None"
-    }
     
     func checkIfModelDownloaded(_ modelName: String) -> Bool {
         return downloadedModels.contains(modelName)
@@ -110,6 +119,11 @@ struct SettingsView: View {
                 
                 // If loading succeeded, the model is complete
                 downloadedModels.insert(model.name)
+                
+                // If this is the first downloaded model and no model is selected, select it
+                if selectedModel == nil {
+                    selectedModel = model.name
+                }
             } catch {
                 // Model exists but is incomplete or corrupted - auto-resume download
                 print("Model \(model.name) exists but is incomplete, auto-resuming download...")
@@ -182,6 +196,11 @@ struct SettingsView: View {
                     downloadProgress[modelName] = 1.0
                     if isValidModel {
                         downloadedModels.insert(modelName)
+                        
+                        // If this is the first downloaded model and no model is selected, select it
+                        if selectedModel == nil {
+                            selectedModel = modelName
+                        }
                     }
                     
                     // Clean up after a short delay to show 100%

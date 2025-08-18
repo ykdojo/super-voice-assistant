@@ -40,11 +40,13 @@ struct SettingsView: View {
                             isDownloaded: checkIfModelDownloaded(model.name),
                             isDownloading: downloadingModels.contains(model.name),
                             downloadProgress: downloadProgress[model.name] ?? 0,
+                            downloadError: downloadErrors[model.name],
                             onSelect: {
                                 selectedModel = model.name
                             },
                             onDownload: {
                                 downloadModel(model.name)
+                                downloadErrors.removeValue(forKey: model.name)
                             }
                         )
                     }
@@ -86,11 +88,39 @@ struct SettingsView: View {
     }
     
     func checkDownloadedModels() async {
-        // Check which models are already downloaded
+        // Check which models are already downloaded by trying to load them
+        var partiallyDownloadedModels: [String] = []
+        
         for model in models {
             let modelPath = getModelPath(for: model.whisperKitModelName)
-            if FileManager.default.fileExists(atPath: modelPath.path) {
+            
+            // First check if directory exists
+            if !FileManager.default.fileExists(atPath: modelPath.path) {
+                continue
+            }
+            
+            // Try to load the model with WhisperKit to validate it's complete
+            do {
+                let _ = try await WhisperKit(
+                    modelFolder: modelPath.path,
+                    verbose: false,
+                    logLevel: .error,
+                    load: true
+                )
+                
+                // If loading succeeded, the model is complete
                 downloadedModels.insert(model.name)
+            } catch {
+                // Model exists but is incomplete or corrupted - auto-resume download
+                print("Model \(model.name) exists but is incomplete, auto-resuming download...")
+                partiallyDownloadedModels.append(model.name)
+            }
+        }
+        
+        // Auto-resume downloads for partially downloaded models
+        for modelName in partiallyDownloadedModels {
+            await MainActor.run {
+                downloadModel(modelName)
             }
         }
     }
@@ -131,15 +161,37 @@ struct SettingsView: View {
                     }
                 )
                 
+                // Validate the downloaded model
+                let modelPath = getModelPath(for: model.whisperKitModelName)
+                var isValidModel = false
+                
+                do {
+                    let _ = try await WhisperKit(
+                        modelFolder: modelPath.path,
+                        verbose: false,
+                        logLevel: .error,
+                        load: true
+                    )
+                    isValidModel = true
+                } catch {
+                    print("Downloaded model failed validation: \(error)")
+                }
+                
                 // Update UI on success
                 await MainActor.run {
                     downloadProgress[modelName] = 1.0
-                    downloadedModels.insert(modelName)
+                    if isValidModel {
+                        downloadedModels.insert(modelName)
+                    }
                     
                     // Clean up after a short delay to show 100%
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                         downloadingModels.remove(modelName)
                         downloadProgress.removeValue(forKey: modelName)
+                        
+                        if !isValidModel {
+                            downloadErrors[modelName] = "Model download incomplete. Please try again."
+                        }
                     }
                 }
                 
@@ -235,6 +287,7 @@ struct ModelCard: View {
     let isDownloaded: Bool
     let isDownloading: Bool
     let downloadProgress: Double
+    let downloadError: String?
     let onSelect: () -> Void
     let onDownload: () -> Void
     
@@ -316,10 +369,19 @@ struct ModelCard: View {
                         .frame(width: 45)
                 }
             } else {
-                Button(action: onDownload) {
-                    Label("Download", systemImage: "arrow.down.circle")
+                VStack(alignment: .trailing, spacing: 4) {
+                    Button(action: onDownload) {
+                        Label("Download", systemImage: "arrow.down.circle")
+                    }
+                    .buttonStyle(.bordered)
+                    
+                    if let error = downloadError {
+                        Text(error)
+                            .font(.caption2)
+                            .foregroundColor(.red)
+                            .multilineTextAlignment(.trailing)
+                    }
                 }
-                .buttonStyle(.bordered)
             }
         }
         .padding()

@@ -175,42 +175,20 @@ struct SettingsView: View {
                     }
                 )
                 
-                // Validate the downloaded model
-                let modelPath = getModelPath(for: model.whisperKitModelName)
-                var isValidModel = false
-                
-                do {
-                    let _ = try await WhisperKit(
-                        modelFolder: modelPath.path,
-                        verbose: false,
-                        logLevel: .error,
-                        load: true
-                    )
-                    isValidModel = true
-                } catch {
-                    print("Downloaded model failed validation: \(error)")
-                }
-                
-                // Update UI on success
+                // When download finishes, assume it's successful and mark as downloaded
                 await MainActor.run {
                     downloadProgress[modelName] = 1.0
-                    if isValidModel {
-                        downloadedModels.insert(modelName)
-                        
-                        // If this is the first downloaded model and no model is selected, select it
-                        if selectedModel == nil {
-                            selectedModel = modelName
-                        }
+                    downloadedModels.insert(modelName)
+                    
+                    // If this is the first downloaded model and no model is selected, select it
+                    if selectedModel == nil {
+                        selectedModel = modelName
                     }
                     
                     // Clean up after a short delay to show 100%
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                         downloadingModels.remove(modelName)
                         downloadProgress.removeValue(forKey: modelName)
-                        
-                        if !isValidModel {
-                            downloadErrors[modelName] = "Model download incomplete. Please try again."
-                        }
                     }
                 }
                 

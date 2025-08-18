@@ -14,7 +14,8 @@ struct ModelInfo {
 }
 
 struct ModelData {
-    static let availableModels = [
+    static var availableModels: [ModelInfo] {
+        var models = [
         // Distil-Whisper Large v3
         // Primary Source: https://huggingface.co/distil-whisper/distil-large-v3
         // WhisperKit CoreML: https://huggingface.co/argmaxinc/whisperkit-coreml
@@ -76,4 +77,25 @@ struct ModelData {
             sourceURL: "https://huggingface.co/openai/whisper-large-v3"  // Official model card
         )
     ]
+        
+        // Add tiny model for testing/development only
+        #if DEBUG
+        models.append(
+            ModelInfo(
+                name: "tiny-test",
+                displayName: "Tiny (Test Only)",
+                whisperKitModelName: "openai_whisper-tiny",
+                size: "39 MB",
+                speed: "32x faster",
+                accuracy: "~87%",
+                accuracyNote: "Test model only - not for production use",
+                languages: "99 languages",
+                description: "⚠️ DEV ONLY: Quick testing model with lower accuracy",
+                sourceURL: "https://huggingface.co/openai/whisper-tiny"
+            )
+        )
+        #endif
+        
+        return models
+    }
 }

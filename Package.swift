@@ -17,7 +17,10 @@ let package = Package(
             targets: ["TestDownload"]),
         .executable(
             name: "ListModels",
-            targets: ["ListModels"])
+            targets: ["ListModels"]),
+        .executable(
+            name: "DeleteModels",
+            targets: ["DeleteModels"])
     ],
     dependencies: [
         .package(url: "https://github.com/sindresorhus/KeyboardShortcuts", from: "2.0.0"),
@@ -35,6 +38,10 @@ let package = Package(
         .executableTarget(
             name: "ListModels",
             dependencies: ["WhisperKit"],
-            path: "ListModelsSources")
+            path: "ListModelsSources"),
+        .executableTarget(
+            name: "DeleteModels",
+            dependencies: [],
+            path: "DeleteModelsSources")
     ]
 )

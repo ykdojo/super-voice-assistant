@@ -5,11 +5,16 @@ print("🧪 Testing WhisperKit Model Downloads")
 print("=====================================")
 
 // Model configurations
-let models = [
+var models = [
     ("distil-whisper_distil-large-v3", "Distil-Whisper V3 (Fast English)"),
     ("openai_whisper-large-v3-v20240930_turbo", "Large V3 Turbo (Balanced)"),
     ("openai_whisper-large-v3-v20240930", "Large V3 (Highest Accuracy)")
 ]
+
+// Add tiny model for testing in debug builds
+#if DEBUG
+models.append(("openai_whisper-tiny", "Tiny (Test Only - 39MB)"))
+#endif
 
 class WhisperModelDownloader {
     static func downloadModel(modelName: String, displayName: String, forceRedownload: Bool = false) async throws -> URL {
@@ -110,7 +115,7 @@ Task {
             for (index, (_, displayName)) in models.enumerated() {
                 print("\(index + 1). \(displayName)")
             }
-            print("\nUsage: swift run TestDownload [1-3] [--force]")
+            print("\nUsage: swift run TestDownload [1-\(models.count)] [--force]")
             print("Example: swift run TestDownload 1")
             print("         swift run TestDownload 1 --force  (re-download even if exists)")
             

@@ -4,23 +4,16 @@ import WhisperKit
 /// WhisperKit model downloader supporting all three models
 class WhisperModelDownloader {
     
-    /// Download any WhisperKit model by name
-    static func downloadModel(modelName: String) async throws -> URL {
+    /// Download any WhisperKit model by name with progress callback
+    static func downloadModel(modelName: String, progressCallback: ((Progress) -> Void)? = nil) async throws -> URL {
         print("Starting download of \(modelName)...")
         
-        // Download the model
-        let whisperKit = try await WhisperKit(
-            model: modelName,
-            modelFolder: nil,
-            tokenizerFolder: nil,
-            download: true
+        // Download the model using WhisperKit.download with progress tracking
+        let modelFolder = try await WhisperKit.download(
+            variant: modelName,
+            from: "argmaxinc/whisperkit-coreml",
+            progressCallback: progressCallback
         )
-        
-        // Get the model folder path
-        guard let modelFolder = whisperKit.modelFolder else {
-            throw NSError(domain: "WhisperModelDownloader", code: -1, 
-                        userInfo: [NSLocalizedDescriptionKey: "Model folder not found after download"])
-        }
         
         print("Model downloaded successfully to: \(modelFolder)")
         return modelFolder
@@ -41,8 +34,8 @@ class WhisperModelDownloader {
         return try await downloadModel(modelName: "openai_whisper-large-v3-v20240930")
     }
     
-    /// Download model based on ModelInfo
-    static func downloadModel(from modelInfo: ModelInfo) async throws -> URL {
-        return try await downloadModel(modelName: modelInfo.whisperKitModelName)
+    /// Download model based on ModelInfo with progress callback
+    static func downloadModel(from modelInfo: ModelInfo, progressCallback: ((Progress) -> Void)? = nil) async throws -> URL {
+        return try await downloadModel(modelName: modelInfo.whisperKitModelName, progressCallback: progressCallback)
     }
 }

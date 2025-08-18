@@ -1,10 +1,14 @@
 import Cocoa
 import SwiftUI
+import WhisperKit
 
+@MainActor
 struct SettingsView: View {
     @State private var selectedModel = "distil-large-v3"
     @State private var downloadingModels: Set<String> = []
     @State private var downloadProgress: [String: Double] = [:]
+    @State private var downloadedModels: Set<String> = []
+    @State private var downloadErrors: [String: String] = [:]
     
     let models = ModelData.availableModels
     
@@ -65,6 +69,11 @@ struct SettingsView: View {
             .padding()
         }
         .frame(width: 600, height: 500)
+        .onAppear {
+            Task {
+                await checkDownloadedModels()
+            }
+        }
     }
     
     var currentModelDisplay: String {
@@ -72,23 +81,79 @@ struct SettingsView: View {
     }
     
     func checkIfModelDownloaded(_ modelName: String) -> Bool {
-        // Mock implementation - returns true for distil-large-v3 model
-        return modelName == "distil-large-v3"
+        return downloadedModels.contains(modelName)
+    }
+    
+    func checkDownloadedModels() async {
+        // Check which models are already downloaded
+        for model in models {
+            let modelPath = getModelPath(for: model.whisperKitModelName)
+            if FileManager.default.fileExists(atPath: modelPath.path) {
+                downloadedModels.insert(model.name)
+            }
+        }
+    }
+    
+    func getModelPath(for whisperKitModelName: String) -> URL {
+        // WhisperKit stores models in ~/Library/Containers/[bundle-id]/Data/Documents/huggingface/models/argmaxinc/
+        // For development, it uses a default location
+        let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        return documentsPath
+            .appendingPathComponent("huggingface")
+            .appendingPathComponent("models")
+            .appendingPathComponent("argmaxinc")
+            .appendingPathComponent(whisperKitModelName)
     }
     
     func downloadModel(_ modelName: String) {
-        print("Downloading model: \(modelName)")
+        guard let model = models.first(where: { $0.name == modelName }) else {
+            print("Model not found: \(modelName)")
+            return
+        }
+        
+        print("Starting download of \(model.displayName)...")
         downloadingModels.insert(modelName)
         downloadProgress[modelName] = 0.0
         
-        // Mock download progress
-        Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { timer in
-            let currentProgress = downloadProgress[modelName] ?? 0.0
-            downloadProgress[modelName] = currentProgress + 0.05
-            if currentProgress >= 1.0 {
-                timer.invalidate()
-                downloadingModels.remove(modelName)
-                downloadProgress.removeValue(forKey: modelName)
+        Task {
+            do {
+                // Perform the actual download with real progress tracking
+                let _ = try await WhisperModelDownloader.downloadModel(
+                    from: model,
+                    progressCallback: { progress in
+                        Task { @MainActor in
+                            // Update progress based on actual download progress
+                            downloadProgress[modelName] = progress.fractionCompleted
+                            
+                            // If download is complete
+                            if progress.isFinished {
+                                downloadProgress[modelName] = 1.0
+                            }
+                        }
+                    }
+                )
+                
+                // Update UI on success
+                await MainActor.run {
+                    downloadProgress[modelName] = 1.0
+                    downloadedModels.insert(modelName)
+                    
+                    // Clean up after a short delay to show 100%
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        downloadingModels.remove(modelName)
+                        downloadProgress.removeValue(forKey: modelName)
+                    }
+                }
+                
+                print("Successfully downloaded \(model.displayName)")
+                
+            } catch {
+                print("Error downloading model: \(error)")
+                await MainActor.run {
+                    downloadErrors[modelName] = error.localizedDescription
+                    downloadingModels.remove(modelName)
+                    downloadProgress.removeValue(forKey: modelName)
+                }
             }
         }
     }
@@ -247,10 +312,10 @@ struct ModelCard: View {
                     ProgressView(value: downloadProgress)
                         .progressViewStyle(.linear)
                         .frame(width: 80)
-                    Text("\(Int(downloadProgress * 100))%")
+                    Text(String(format: "%.1f%%", downloadProgress * 100))
                         .font(.caption)
                         .foregroundColor(.secondary)
-                        .frame(width: 35)
+                        .frame(width: 45)
                 }
             } else {
                 Button(action: onDownload) {

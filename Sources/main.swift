@@ -185,4 +185,10 @@ let app = NSApplication.shared
 let delegate = AppDelegate()
 app.delegate = delegate
 app.setActivationPolicy(.regular) // Show in dock and cmd+tab
+
+// Set the app icon programmatically
+if let iconImage = NSImage(systemSymbolName: "mic.circle.fill", accessibilityDescription: "Voice Assistant") {
+    app.applicationIconImage = iconImage
+}
+
 app.run()

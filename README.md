@@ -1,38 +1,94 @@
 # Super Voice Assistant
 
-A simple macOS dictation app with global hotkey support for voice transcription.
+A native macOS dictation app with global hotkey support for instant voice-to-text transcription.
 
-## Goal
+## Current Status
 
-Press a global hotkey → Speak → Text appears at cursor position.
+The app currently supports:
+- ✅ Menu bar app with waveform icon
+- ✅ Global hotkey (Shift+Alt+Z) to start/stop recording
+- ✅ Audio recording with visual feedback (level meter)
+- ✅ Settings window with WhisperKit model selection and download
+- ✅ Model management utilities
 
-## Core Features
-- Global hotkey (Shift+Alt+Z) to start/stop recording
-- Transcribe speech using WhisperKit
-- Insert text at cursor position
-- Runs fully offline
+**In Development:**
+- ⏳ WhisperKit transcription integration
+- ⏳ Text output to cursor position
 
-## Tech Stack
-- **Language**: Swift
-- **UI Framework**: Cocoa (AppKit)
-- **Speech Recognition**: WhisperKit (native Swift package)
-- **Global Hotkeys**: KeyboardShortcuts library
+## Requirements
 
-## Building and Running
+- macOS 14.0 or later
+- Microphone permissions
+
+## Installation & Running
 
 ```bash
+# Clone the repository
+git clone https://github.com/yourusername/super-voice-assistant.git
+cd super-voice-assistant
+
 # Build the app
 swift build
 
-# Run the app
-swift run
+# Run the main app
+swift run SuperVoiceAssistant
 ```
 
-The app runs in the menu bar (look for the waveform icon).
+The app will appear in your menu bar as a waveform icon.
+
+## Usage
+
+1. Launch the app - it appears in the menu bar
+2. Open Settings (click menu bar icon > Settings) to download a WhisperKit model
+3. Press Shift+Alt+Z to start recording (you'll see audio level meter)
+4. Press Shift+Alt+Z again to stop recording
+5. *Note: Transcription is not yet implemented*
+
+## Available Commands
+
+```bash
+# Run the main app
+swift run SuperVoiceAssistant
+
+# List all available WhisperKit models
+swift run ListModels
+
+# Test downloading a model (currently set to distil-whisper_distil-large-v3)
+swift run TestDownload
+
+# Validate downloaded models are complete
+swift run ValidateModels
+
+# Delete all downloaded models
+swift run DeleteModels
+
+# Delete a specific model
+swift run DeleteModel <model-name>
+# Example: swift run DeleteModel distil-large-v3
+```
+
+## Model Management
+
+WhisperKit models are stored in: `~/Documents/huggingface/models/argmaxinc/whisperkit-coreml/`
+
+Available models include various sizes (tiny, base, small, large) and optimized versions (turbo, distil). Use `swift run ListModels` to see all 22+ available models.
+
+## Tech Stack
+
+- **Language**: Swift
+- **UI Framework**: AppKit (Cocoa)
+- **Speech Recognition**: [WhisperKit](https://github.com/argmaxinc/WhisperKit) (integration in progress)
+- **Global Hotkeys**: [KeyboardShortcuts](https://github.com/sindresorhus/KeyboardShortcuts)
 
 ## Project Structure
-- `Sources/main.swift` - Main app entry point with menu bar implementation
-- `Package.swift` - Swift package configuration
+
+- `Sources/` - Main app code
+- `SharedSources/` - Shared model management code
+- `TestSources/` - Model download test utility
+- `ListModelsSources/` - Model listing utility
+- `ValidateModelsSources/` - Model validation utility
+- `DeleteModelsSources/` - Bulk model deletion utility
+- `DeleteModelSources/` - Single model deletion utility
 
 ## License
 

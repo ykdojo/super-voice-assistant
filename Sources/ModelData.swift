@@ -3,6 +3,7 @@ import Foundation
 struct ModelInfo {
     let name: String
     let displayName: String
+    let whisperKitModelName: String  // Actual model identifier for WhisperKit download
     let size: String
     let speed: String
     let accuracy: String
@@ -25,6 +26,7 @@ struct ModelData {
         ModelInfo(
             name: "distil-large-v3",
             displayName: "Distil Large v3",
+            whisperKitModelName: "distil-whisper_distil-large-v3",  // Non-turbo version as per display name
             size: "756 MB",
             speed: "6.3x faster",
             accuracy: "97.6%",  // Calculated from 2.43% WER validation-clean
@@ -44,6 +46,7 @@ struct ModelData {
         ModelInfo(
             name: "large-v3-turbo",
             displayName: "Large v3 Turbo",
+            whisperKitModelName: "openai_whisper-large-v3-v20240930_turbo",  // WhisperKit model identifier
             size: "809 MB",
             speed: "8x faster",
             accuracy: "~96%",  // Similar to large-v2 performance
@@ -63,6 +66,7 @@ struct ModelData {
         ModelInfo(
             name: "large-v3",
             displayName: "Large v3",
+            whisperKitModelName: "openai_whisper-large-v3-v20240930",  // WhisperKit model identifier  
             size: "1.54 GB",
             speed: "Baseline",
             accuracy: "98.2%",  // Calculated from 1.80% WER on LibriSpeech test-clean

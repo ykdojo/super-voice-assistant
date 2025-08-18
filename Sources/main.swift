@@ -184,5 +184,5 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 let app = NSApplication.shared
 let delegate = AppDelegate()
 app.delegate = delegate
-app.setActivationPolicy(.accessory) // Hide from dock
+app.setActivationPolicy(.regular) // Show in dock and cmd+tab
 app.run()

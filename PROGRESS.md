@@ -40,6 +40,10 @@ swift run ValidateModels
 
 # Delete all downloaded models
 swift run DeleteModels
+
+# Delete a specific model
+swift run DeleteModel <model-name>
+# Example: swift run DeleteModel distil-large-v3
 ```
 
 ### Model Information

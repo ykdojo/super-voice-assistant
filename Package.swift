@@ -22,6 +22,9 @@ let package = Package(
             name: "DeleteModels",
             targets: ["DeleteModels"]),
         .executable(
+            name: "DeleteModel",
+            targets: ["DeleteModel"]),
+        .executable(
             name: "ValidateModels",
             targets: ["ValidateModels"]),
         .library(
@@ -57,6 +60,10 @@ let package = Package(
             name: "DeleteModels",
             dependencies: ["SharedModels"],
             path: "DeleteModelsSources"),
+        .executableTarget(
+            name: "DeleteModel",
+            dependencies: ["SharedModels"],
+            path: "DeleteModelSources"),
         .executableTarget(
             name: "ValidateModels",
             dependencies: ["WhisperKit", "SharedModels"],

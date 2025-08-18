@@ -100,42 +100,75 @@ struct SettingsView: View {
     func checkDownloadedModels() async {
         // Check which models are already downloaded by trying to load them
         var partiallyDownloadedModels: [String] = []
+        let modelManager = WhisperModelManager.shared
         
-        for model in models {
-            let modelPath = getModelPath(for: model.whisperKitModelName)
-            
-            // First check if directory exists
-            if !FileManager.default.fileExists(atPath: modelPath.path) {
-                continue
+        // Process each model in parallel for faster checking
+        await withTaskGroup(of: (String, Bool, Bool).self) { group in
+            for model in models {
+                let whisperKitModelName = model.whisperKitModelName
+                let modelPath = getModelPath(for: whisperKitModelName)
+                
+                group.addTask {
+                    
+                    // First check if directory exists
+                    if !FileManager.default.fileExists(atPath: modelPath.path) {
+                        return (model.name, false, false)
+                    }
+                    
+                    // Check if we have metadata marking it as complete
+                    if modelManager.isModelDownloaded(whisperKitModelName) {
+                        // Trust our metadata if it says complete
+                        return (model.name, true, false)
+                    }
+                    
+                    // Try to load the model with WhisperKit to validate it's complete
+                    do {
+                        let _ = try await WhisperKit(
+                            modelFolder: modelPath.path,
+                            verbose: false,
+                            logLevel: .error,
+                            load: true
+                        )
+                        
+                        // If loading succeeded, mark it in our manager
+                        modelManager.markModelAsDownloaded(whisperKitModelName)
+                        return (model.name, true, false)
+                    } catch {
+                        // Model exists but is incomplete or corrupted
+                        print("Model \(model.name) exists but is incomplete, will auto-resume download...")
+                        return (model.name, false, true)
+                    }
+                }
             }
             
-            // Try to load the model with WhisperKit to validate it's complete
-            do {
-                let _ = try await WhisperKit(
-                    modelFolder: modelPath.path,
-                    verbose: false,
-                    logLevel: .error,
-                    load: true
-                )
-                
-                // If loading succeeded, the model is complete
-                downloadedModels.insert(model.name)
-                
-                // If this is the first downloaded model and no model is selected, select it
-                if selectedModel == nil {
-                    selectedModel = model.name
+            // Collect results
+            for await (modelName, isComplete, needsResume) in group {
+                if isComplete {
+                    await MainActor.run {
+                        downloadedModels.insert(modelName)
+                        
+                        // If this is the first downloaded model and no model is selected, select it
+                        if selectedModel == nil {
+                            selectedModel = modelName
+                        }
+                    }
+                } else if needsResume {
+                    partiallyDownloadedModels.append(modelName)
                 }
-            } catch {
-                // Model exists but is incomplete or corrupted - auto-resume download
-                print("Model \(model.name) exists but is incomplete, auto-resuming download...")
-                partiallyDownloadedModels.append(model.name)
             }
         }
         
-        // Auto-resume downloads for partially downloaded models
+        // Auto-resume downloads for partially downloaded models with immediate UI feedback
         for modelName in partiallyDownloadedModels {
             await MainActor.run {
-                downloadModel(modelName)
+                // Set UI state immediately before starting download
+                downloadingModels.insert(modelName)
+                downloadProgress[modelName] = 0.0
+                
+                // Small delay to ensure UI updates
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    self.downloadModel(modelName)
+                }
             }
         }
     }
@@ -176,10 +209,13 @@ struct SettingsView: View {
                     }
                 )
                 
-                // When download finishes, assume it's successful and mark as downloaded
+                // When download finishes, mark it as complete in our manager
                 await MainActor.run {
                     downloadProgress[modelName] = 1.0
                     downloadedModels.insert(modelName)
+                    
+                    // Mark as downloaded in persistent manager
+                    WhisperModelManager.shared.markModelAsDownloaded(model.whisperKitModelName)
                     
                     // If this is the first downloaded model and no model is selected, select it
                     if selectedModel == nil {

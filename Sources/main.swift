@@ -48,6 +48,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         // Request microphone permission
         requestMicrophonePermission()
+        
+        // Check downloaded models at startup (in background)
+        Task {
+            await ModelStateManager.shared.checkDownloadedModels()
+            print("Model check completed at startup")
+        }
     }
     
     func setupAudioEngine() {

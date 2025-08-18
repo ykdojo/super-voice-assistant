@@ -6,10 +6,9 @@ import SharedModels
 
 @MainActor
 struct SettingsView: View {
-    @State private var selectedModel: String? = nil
+    @StateObject private var modelState = ModelStateManager.shared
     @State private var downloadingModels: Set<String> = []
     @State private var downloadProgress: [String: Double] = [:]
-    @State private var downloadedModels: Set<String> = []
     @State private var downloadErrors: [String: String] = [:]
     
     let models = ModelData.availableModels
@@ -37,14 +36,14 @@ struct SettingsView: View {
                     ForEach(models, id: \.name) { model in
                         ModelCard(
                             model: model,
-                            isSelected: selectedModel == model.name,
-                            isDownloaded: checkIfModelDownloaded(model.name),
+                            isSelected: modelState.selectedModel == model.name,
+                            isDownloaded: modelState.downloadedModels.contains(model.name),
                             isDownloading: downloadingModels.contains(model.name),
                             downloadProgress: downloadProgress[model.name] ?? 0,
                             downloadError: downloadErrors[model.name],
                             onSelect: {
-                                if checkIfModelDownloaded(model.name) {
-                                    selectedModel = model.name
+                                if modelState.downloadedModels.contains(model.name) {
+                                    modelState.selectedModel = model.name
                                 }
                             },
                             onDownload: {
@@ -61,11 +60,15 @@ struct SettingsView: View {
             
             // Footer with current status
             HStack {
-                if downloadedModels.isEmpty {
+                if modelState.isCheckingModels {
+                    Label("Checking models...", systemImage: "arrow.clockwise")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                } else if modelState.downloadedModels.isEmpty {
                     Label("Download a model to get started", systemImage: "arrow.down.circle")
                         .font(.caption)
                         .foregroundColor(.secondary)
-                } else if let selected = selectedModel {
+                } else if let selected = modelState.selectedModel {
                     Label("Current model: \(models.first(where: { $0.name == selected })?.displayName ?? "None")", systemImage: "checkmark.circle.fill")
                         .font(.caption)
                         .foregroundColor(.secondary)
@@ -86,75 +89,35 @@ struct SettingsView: View {
         }
         .frame(width: 600, height: 500)
         .onAppear {
+            // If models haven't been checked yet (e.g., settings opened very quickly after app start)
+            if modelState.isCheckingModels {
+                Task {
+                    await modelState.checkDownloadedModels()
+                }
+            }
+            
+            // Check for incomplete downloads that need auto-resume
             Task {
-                await checkDownloadedModels()
+                await checkForIncompleteDownloads()
             }
         }
     }
     
     
-    func checkIfModelDownloaded(_ modelName: String) -> Bool {
-        return downloadedModels.contains(modelName)
-    }
     
-    func checkDownloadedModels() async {
-        // Check which models are already downloaded by trying to load them
+    func checkForIncompleteDownloads() async {
+        // Only check for incomplete downloads that need auto-resume
         var partiallyDownloadedModels: [String] = []
-        let modelManager = WhisperModelManager.shared
         
-        // Process each model in parallel for faster checking
-        await withTaskGroup(of: (String, Bool, Bool).self) { group in
-            for model in models {
-                let whisperKitModelName = model.whisperKitModelName
-                let modelPath = getModelPath(for: whisperKitModelName)
-                
-                group.addTask {
-                    
-                    // First check if directory exists
-                    if !FileManager.default.fileExists(atPath: modelPath.path) {
-                        return (model.name, false, false)
-                    }
-                    
-                    // Check if we have metadata marking it as complete
-                    if modelManager.isModelDownloaded(whisperKitModelName) {
-                        // Trust our metadata if it says complete
-                        return (model.name, true, false)
-                    }
-                    
-                    // Try to load the model with WhisperKit to validate it's complete
-                    do {
-                        let _ = try await WhisperKit(
-                            modelFolder: modelPath.path,
-                            verbose: false,
-                            logLevel: .error,
-                            load: true
-                        )
-                        
-                        // If loading succeeded, mark it in our manager
-                        modelManager.markModelAsDownloaded(whisperKitModelName)
-                        return (model.name, true, false)
-                    } catch {
-                        // Model exists but is incomplete or corrupted
-                        print("Model \(model.name) exists but is incomplete, will auto-resume download...")
-                        return (model.name, false, true)
-                    }
-                }
-            }
+        for model in models {
+            let modelPath = getModelPath(for: model.whisperKitModelName)
             
-            // Collect results
-            for await (modelName, isComplete, needsResume) in group {
-                if isComplete {
-                    await MainActor.run {
-                        downloadedModels.insert(modelName)
-                        
-                        // If this is the first downloaded model and no model is selected, select it
-                        if selectedModel == nil {
-                            selectedModel = modelName
-                        }
-                    }
-                } else if needsResume {
-                    partiallyDownloadedModels.append(modelName)
-                }
+            // Check if directory exists but model is not in downloaded set
+            if FileManager.default.fileExists(atPath: modelPath.path) && 
+               !modelState.downloadedModels.contains(model.name) {
+                // This model exists on disk but isn't marked as complete
+                print("Model \(model.name) exists but is incomplete, will auto-resume download...")
+                partiallyDownloadedModels.append(model.name)
             }
         }
         
@@ -212,15 +175,7 @@ struct SettingsView: View {
                 // When download finishes, mark it as complete in our manager
                 await MainActor.run {
                     downloadProgress[modelName] = 1.0
-                    downloadedModels.insert(modelName)
-                    
-                    // Mark as downloaded in persistent manager
-                    WhisperModelManager.shared.markModelAsDownloaded(model.whisperKitModelName)
-                    
-                    // If this is the first downloaded model and no model is selected, select it
-                    if selectedModel == nil {
-                        selectedModel = modelName
-                    }
+                    modelState.markModelAsDownloaded(modelName)
                     
                     // Clean up after a short delay to show 100%
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
@@ -240,193 +195,6 @@ struct SettingsView: View {
                 }
             }
         }
-    }
-}
-
-struct AccuracyBar: View {
-    let accuracy: String
-    let note: String
-    let sourceURL: String
-    
-    var accuracyValue: Double {
-        // Remove both tilde and percentage sign for parsing
-        let cleanedAccuracy = accuracy
-            .replacingOccurrences(of: "~", with: "")
-            .replacingOccurrences(of: "%", with: "")
-            .trimmingCharacters(in: .whitespaces)
-        return Double(cleanedAccuracy) ?? 0.0
-    }
-    
-    var fillColor: Color {
-        switch accuracyValue {
-        case 97...:
-            return .green
-        case 95..<97:
-            return .blue
-        case 93..<95:
-            return .orange
-        default:
-            return .yellow
-        }
-    }
-    
-    var body: some View {
-        HStack(spacing: 6) {
-            // Bar chart icon
-            Image(systemName: "chart.bar.fill")
-                .foregroundColor(.secondary)
-                .font(.caption)
-            
-            // Progress bar
-            GeometryReader { geometry in
-                ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 2)
-                        .fill(Color.gray.opacity(0.2))
-                        .frame(height: 8)
-                    
-                    RoundedRectangle(cornerRadius: 2)
-                        .fill(fillColor)
-                        .frame(width: geometry.size.width * accuracyValue / 100, height: 8)
-                }
-            }
-            .frame(width: 40, height: 8)
-            
-            Text(accuracy)
-                .font(.caption)
-                .fontWeight(.medium)
-                .foregroundColor(.primary)
-                .frame(minWidth: 45, alignment: .leading)
-                .fixedSize()
-            
-            // Info button for source
-            Button(action: {
-                if let url = URL(string: sourceURL) {
-                    NSWorkspace.shared.open(url)
-                }
-            }) {
-                Image(systemName: "info.circle")
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
-            }
-            .buttonStyle(.plain)
-            .help("View benchmark source")
-        }
-        .help(note) // This adds the tooltip on hover
-    }
-}
-
-struct ModelCard: View {
-    let model: ModelInfo
-    let isSelected: Bool
-    let isDownloaded: Bool
-    let isDownloading: Bool
-    let downloadProgress: Double
-    let downloadError: String?
-    let onSelect: () -> Void
-    let onDownload: () -> Void
-    
-    var body: some View {
-        HStack(spacing: 16) {
-            // Radio button
-            Image(systemName: isSelected ? "largecircle.fill.circle" : "circle")
-                .foregroundColor(isSelected ? .accentColor : .secondary)
-                .imageScale(.large)
-                .onTapGesture {
-                    if isDownloaded {
-                        onSelect()
-                    }
-                }
-            
-            // Model info
-            VStack(alignment: .leading, spacing: 6) {
-                HStack {
-                    Text(model.displayName)
-                        .font(.headline)
-                    
-                    // Language badge
-                    Text(model.languages)
-                        .font(.caption2)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(
-                            Capsule()
-                                .fill(Color.blue.opacity(0.15))
-                        )
-                        .foregroundColor(.blue)
-                }
-                
-                Text(model.description)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                
-                HStack(spacing: 16) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "internaldrive")
-                        Text(model.size)
-                            .fixedSize()
-                    }
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    
-                    HStack(spacing: 4) {
-                        Image(systemName: "speedometer")
-                        Text(model.speed)
-                            .fixedSize()
-                    }
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .help("Speed relative to baseline. See https://huggingface.co/spaces/argmaxinc/whisperkit-benchmarks for detailed performance metrics.")
-                    
-                    AccuracyBar(accuracy: model.accuracy, note: model.accuracyNote, sourceURL: model.sourceURL)
-                }
-            }
-            
-            Spacer()
-            
-            // Download button or status
-            if isDownloaded {
-                HStack {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(.green)
-                    Text("Downloaded")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-            } else if isDownloading {
-                HStack(spacing: 8) {
-                    ProgressView(value: downloadProgress)
-                        .progressViewStyle(.linear)
-                        .frame(width: 80)
-                    Text(String(format: "%.1f%%", downloadProgress * 100))
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .frame(width: 45)
-                }
-            } else {
-                VStack(alignment: .trailing, spacing: 4) {
-                    Button(action: onDownload) {
-                        Label("Download", systemImage: "arrow.down.circle")
-                    }
-                    .buttonStyle(.bordered)
-                    
-                    if let error = downloadError {
-                        Text(error)
-                            .font(.caption2)
-                            .foregroundColor(.red)
-                            .multilineTextAlignment(.trailing)
-                    }
-                }
-            }
-        }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(isSelected ? Color.accentColor.opacity(0.1) : Color.gray.opacity(0.05))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(isSelected ? Color.accentColor : Color.gray.opacity(0.2), lineWidth: 1)
-        )
     }
 }
 

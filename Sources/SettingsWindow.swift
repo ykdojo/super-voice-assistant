@@ -2,6 +2,7 @@ import Cocoa
 import SwiftUI
 import WhisperKit
 import Hub
+import SharedModels
 
 @MainActor
 struct SettingsView: View {

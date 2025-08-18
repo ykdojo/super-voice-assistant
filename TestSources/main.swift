@@ -1,5 +1,6 @@
 import Foundation
 import WhisperKit
+import SharedModels
 
 print("🧪 Testing WhisperKit Model Downloads")
 print("=====================================")
@@ -17,25 +18,46 @@ models.append(("openai_whisper-tiny", "Tiny (Test Only - 39MB)"))
 #endif
 
 class WhisperModelDownloader {
+    static let modelManager = WhisperModelManager.shared
+    
     static func downloadModel(modelName: String, displayName: String, forceRedownload: Bool = false) async throws -> URL {
         print("\n📦 Testing: \(displayName)")
         print("   Model ID: \(modelName)")
         print("   Starting download...")
         
-        // Check if model already exists
-        let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        let hubPath = documentsPath.appendingPathComponent("huggingface/models/argmaxinc/whisperkit-coreml")
-        let modelPath = hubPath.appendingPathComponent(modelName)
+        let modelPath = modelManager.getModelPath(for: modelName)
         
-        if FileManager.default.fileExists(atPath: modelPath.path) && !forceRedownload {
-            print("   ℹ️ Model already exists at: \(modelPath)")
+        // Check if model is already marked as downloaded
+        if modelManager.isModelDownloaded(modelName) && !forceRedownload {
+            print("   ✅ Model already downloaded and verified")
+            print("   ℹ️ Location: \(modelPath)")
+            
+            // Show metadata if available
+            if let metadata = modelManager.getModelMetadata(modelName) {
+                let formatter = DateFormatter()
+                formatter.dateStyle = .medium
+                formatter.timeStyle = .short
+                print("   📅 Downloaded: \(formatter.string(from: metadata.downloadDate))")
+                if let size = metadata.totalSize {
+                    let sizeInMB = Double(size) / 1024 / 1024
+                    print("   💾 Size: \(String(format: "%.1f", sizeInMB)) MB")
+                }
+            }
+            
             print("   💡 Tip: Use --force flag to re-download")
             return modelPath
+        }
+        
+        // Check if model exists but not marked as complete
+        if modelManager.modelExistsOnDisk(modelName) && !modelManager.isModelDownloaded(modelName) {
+            print("   ⚠️  Found incomplete download, re-downloading...")
+            try FileManager.default.removeItem(at: modelPath)
         }
         
         // Remove existing model if force redownload
         if forceRedownload && FileManager.default.fileExists(atPath: modelPath.path) {
             print("   🗑️ Removing existing model for re-download...")
+            modelManager.removeDownloadMetadata(for: modelName)
             try FileManager.default.removeItem(at: modelPath)
         }
         
@@ -73,7 +95,12 @@ class WhisperModelDownloader {
         )
         
         print() // Add newline after progress bar
+        
+        // Mark model as successfully downloaded
+        modelManager.markModelAsDownloaded(modelName)
+        
         print("   ✅ Downloaded successfully to: \(modelFolder)")
+        print("   ✅ Model marked as complete")
         return modelFolder
     }
     

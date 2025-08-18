@@ -1,6 +1,7 @@
 import Foundation
 import WhisperKit
 import Hub
+import SharedModels
 
 print("🔍 WhisperKit Model Validation Tool")
 print("====================================")
@@ -14,44 +15,49 @@ let models = [
     ("openai_whisper-tiny", "Tiny")
 ]
 
-func getModelPath(for whisperKitModelName: String) -> URL {
-    // Use the same path structure as WhisperKit/HubApi
-    let hubApi = HubApi()
-    let repo = Hub.Repo(id: "argmaxinc/whisperkit-coreml", type: .models)
-    let repoLocation = hubApi.localRepoLocation(repo)
-    return repoLocation.appendingPathComponent(whisperKitModelName)
-}
+let modelManager = WhisperModelManager.shared
 
 func validateModel(modelName: String, displayName: String) async {
     print("Checking \(displayName)...")
     
-    let modelPath = getModelPath(for: modelName)
-    
     // First check if the directory exists
-    if !FileManager.default.fileExists(atPath: modelPath.path) {
+    if !modelManager.modelExistsOnDisk(modelName) {
         print("  ❌ Not downloaded (directory doesn't exist)")
         return
     }
     
-    // Try to load the model with WhisperKit
-    do {
-        print("  📂 Found at: \(modelPath.path)")
-        print("  🔄 Attempting to load with WhisperKit...")
+    // Check if model is marked as downloaded
+    if modelManager.isModelDownloaded(modelName) {
+        print("  ✅ Marked as downloaded")
         
-        // Try to initialize WhisperKit with the specific model folder
-        let whisperKit = try await WhisperKit(
-            modelFolder: modelPath.path,
-            verbose: false,
-            logLevel: .error,
-            load: true
-        )
+        // Show metadata
+        if let metadata = modelManager.getModelMetadata(modelName) {
+            let formatter = DateFormatter()
+            formatter.dateStyle = .medium
+            formatter.timeStyle = .short
+            print("  📅 Downloaded: \(formatter.string(from: metadata.downloadDate))")
+            
+            if let fileCount = metadata.fileCount {
+                print("  📁 Files: \(fileCount)")
+            }
+            
+            if let size = metadata.totalSize {
+                let sizeInMB = Double(size) / 1024 / 1024
+                print("  💾 Size: \(String(format: "%.1f", sizeInMB)) MB")
+            }
+        }
+    } else {
+        print("  ⚠️  Found on disk but not marked as complete")
         
-        print("  ✅ Model is complete and valid!")
-        
-    } catch {
-        print("  ⚠️  Model is incomplete or corrupted!")
-        print("     Error: \(error.localizedDescription)")
-        print("  💡 Tip: Delete the model folder and re-download")
+        // Check basic integrity without loading the full model
+        if modelManager.validateModelIntegrity(modelName) {
+            print("  📁 Model files present, marking as downloaded")
+            modelManager.markModelAsDownloaded(modelName)
+            print("  ✅ Marked as downloaded")
+        } else {
+            print("  ❌ Model appears incomplete")
+            print("  💡 Tip: Delete the model folder and re-download")
+        }
     }
     
     print("")

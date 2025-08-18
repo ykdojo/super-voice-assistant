@@ -4,14 +4,19 @@
 - [x] Basic Swift package setup
 - [x] Menu bar app with waveform icon
 - [x] Quit menu
-- [x] Global hotkey support (Shift+Alt+Z)
+- [x] Global hotkey support (Shift+Alt+Z)  
 - [x] Visual feedback with icon animation
 - [x] Audio recording with mic permissions
 - [x] Real-time audio level meter display
 - [x] WhisperKit dependency added
 - [x] Test scripts for WhisperKit model management
+- [x] Settings UI with model selection and download
+- [x] Model download functionality with progress tracking
+- [x] Model validation tool (ValidateModels) to check download completeness
 
 ## Next Steps 📝
+- [ ] Integrate model validation in UI (use WhisperKit load test to verify complete downloads)
+- [ ] Handle partial downloads gracefully (show re-download option)
 - [ ] WhisperKit integration for transcription
 - [ ] Output to clipboard
 - [ ] Insert at cursor position
@@ -29,6 +34,12 @@ swift run ListModels
 
 # Test downloading a specific model (currently configured for distil-whisper_distil-large-v3)
 swift run TestDownload
+
+# Validate downloaded models are complete by trying to load them
+swift run ValidateModels
+
+# Delete all downloaded models
+swift run DeleteModels
 ```
 
 ### Model Information

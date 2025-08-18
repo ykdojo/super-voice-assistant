@@ -1,6 +1,7 @@
 import Cocoa
 import SwiftUI
 import WhisperKit
+import Hub
 
 @MainActor
 struct SettingsView: View {
@@ -95,14 +96,11 @@ struct SettingsView: View {
     }
     
     func getModelPath(for whisperKitModelName: String) -> URL {
-        // WhisperKit stores models in ~/Library/Containers/[bundle-id]/Data/Documents/huggingface/models/argmaxinc/
-        // For development, it uses a default location
-        let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        return documentsPath
-            .appendingPathComponent("huggingface")
-            .appendingPathComponent("models")
-            .appendingPathComponent("argmaxinc")
-            .appendingPathComponent(whisperKitModelName)
+        // Use the same path structure as WhisperKit/HubApi
+        let hubApi = HubApi()
+        let repo = Hub.Repo(id: "argmaxinc/whisperkit-coreml", type: .models)
+        let repoLocation = hubApi.localRepoLocation(repo)
+        return repoLocation.appendingPathComponent(whisperKitModelName)
     }
     
     func downloadModel(_ modelName: String) {

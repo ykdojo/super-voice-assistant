@@ -11,7 +11,13 @@ let package = Package(
     products: [
         .executable(
             name: "SuperVoiceAssistant",
-            targets: ["SuperVoiceAssistant"])
+            targets: ["SuperVoiceAssistant"]),
+        .executable(
+            name: "TestDownload",
+            targets: ["TestDownload"]),
+        .executable(
+            name: "ListModels",
+            targets: ["ListModels"])
     ],
     dependencies: [
         .package(url: "https://github.com/sindresorhus/KeyboardShortcuts", from: "2.0.0"),
@@ -20,6 +26,15 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "SuperVoiceAssistant",
-            dependencies: ["KeyboardShortcuts", "WhisperKit"])
+            dependencies: ["KeyboardShortcuts", "WhisperKit"],
+            path: "Sources"),
+        .executableTarget(
+            name: "TestDownload",
+            dependencies: ["WhisperKit"],
+            path: "TestSources"),
+        .executableTarget(
+            name: "ListModels",
+            dependencies: ["WhisperKit"],
+            path: "ListModelsSources")
     ]
 )

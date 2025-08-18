@@ -36,4 +36,4 @@ The app runs in the menu bar (look for the waveform icon).
 
 ## License
 
-All rights reserved.
+See [LICENSE](LICENSE) for details.

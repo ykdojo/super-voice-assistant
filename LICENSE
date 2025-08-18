@@ -1,6 +1,17 @@
-MIT License
+MIT License with Exclusions
 
 Copyright (c) 2025 Super Voice Assistant Contributors
+
+IMPORTANT EXCLUSIONS:
+1. IMAGE FILES: All image files (including but not limited to *.png, *.jpg, *.jpeg, *.gif, 
+   *.svg, *.ico, *.icns files) are proprietary and all rights are reserved.
+2. PROJECT NAME: The name "Super Voice Assistant" and associated branding are reserved. 
+   While you may fork and modify the code, you must use a different name for your project.
+
+These excluded items may not be used, copied, modified, or distributed without explicit 
+written permission from the copyright holder.
+
+For all non-image files:
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

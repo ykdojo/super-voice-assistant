@@ -186,8 +186,9 @@ let delegate = AppDelegate()
 app.delegate = delegate
 app.setActivationPolicy(.regular) // Show in dock and cmd+tab
 
-// Set the app icon programmatically
-if let iconImage = NSImage(systemSymbolName: "mic.circle.fill", accessibilityDescription: "Voice Assistant") {
+// Set the app icon from our custom ICNS file
+if let iconURL = Bundle.module.url(forResource: "AppIcon", withExtension: "icns"),
+   let iconImage = NSImage(contentsOf: iconURL) {
     app.applicationIconImage = iconImage
 }
 

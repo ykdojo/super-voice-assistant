@@ -33,7 +33,11 @@ let package = Package(
         .executableTarget(
             name: "SuperVoiceAssistant",
             dependencies: ["KeyboardShortcuts", "WhisperKit"],
-            path: "Sources"),
+            path: "Sources",
+            resources: [
+                .copy("Assets.xcassets"),
+                .copy("AppIcon.icns")
+            ]),
         .executableTarget(
             name: "TestDownload",
             dependencies: ["WhisperKit"],

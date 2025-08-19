@@ -6,14 +6,14 @@ A native macOS dictation app with global hotkey support for instant voice-to-tex
 
 The app currently supports:
 - ✅ Menu bar app with waveform icon
-- ✅ Global hotkey (Shift+Alt+Z) to start/stop recording
+- ✅ Global hotkey (Shift+Alt+Z) to start/stop recording and transcribe
 - ✅ Audio recording with visual feedback (level meter)
+- ✅ WhisperKit transcription with automatic text pasting
 - ✅ Settings window with WhisperKit model selection and download
+- ✅ Model download progress and loading states
+- ✅ Model persistence across app restarts
 - ✅ Model management utilities
-
-**In Development:**
-- ⏳ WhisperKit transcription integration
-- ⏳ Text output to cursor position
+- ✅ Placeholder text insertion (Shift+Alt+A)
 
 ## Requirements
 
@@ -40,9 +40,14 @@ The app will appear in your menu bar as a waveform icon.
 
 1. Launch the app - it appears in the menu bar
 2. Open Settings (click menu bar icon > Settings) to download a WhisperKit model
-3. Press Shift+Alt+Z to start recording (you'll see audio level meter)
-4. Press Shift+Alt+Z again to stop recording
-5. *Note: Transcription is not yet implemented*
+3. Press **Shift+Alt+Z** to start recording (you'll see audio level meter)
+4. Press **Shift+Alt+Z** again to stop recording and transcribe
+5. The transcribed text will automatically be pasted at your cursor position
+
+### Keyboard Shortcuts
+
+- **Shift+Alt+Z**: Start/stop recording and transcribe
+- **Shift+Alt+A**: Insert placeholder text (useful for testing)
 
 ## Available Commands
 
@@ -65,6 +70,12 @@ swift run DeleteModels
 # Delete a specific model
 swift run DeleteModel <model-name>
 # Example: swift run DeleteModel distil-large-v3
+
+# Test transcription with a sample audio file
+swift run TestTranscription
+
+# Test live transcription with microphone input
+swift run TestLiveTranscription
 ```
 
 ## Model Management

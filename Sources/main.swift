@@ -8,7 +8,6 @@ import Combine
 
 extension KeyboardShortcuts.Name {
     static let startRecording = Self("startRecording")
-    static let insertPlaceholder = Self("insertPlaceholder")
 }
 
 class AppDelegate: NSObject, NSApplicationDelegate {
@@ -35,7 +34,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Create menu
         let menu = NSMenu()
         menu.addItem(NSMenuItem(title: "Recording: Press Shift+Alt+Z", action: nil, keyEquivalent: ""))
-        menu.addItem(NSMenuItem(title: "Insert Text: Press Shift+Alt+A", action: nil, keyEquivalent: ""))
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Settings...", action: #selector(openSettings), keyEquivalent: ","))
         menu.addItem(NSMenuItem.separator())
@@ -45,17 +43,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Set default keyboard shortcut (Shift+Alt+Z)
         KeyboardShortcuts.setShortcut(.init(.z, modifiers: [.shift, .option]), for: .startRecording)
         
-        // Set default keyboard shortcut for placeholder text (Shift+Alt+A)
-        KeyboardShortcuts.setShortcut(.init(.a, modifiers: [.shift, .option]), for: .insertPlaceholder)
-        
         // Set up keyboard shortcut handler
         KeyboardShortcuts.onKeyUp(for: .startRecording) { [weak self] in
             self?.toggleRecording()
-        }
-        
-        // Set up placeholder text shortcut handler
-        KeyboardShortcuts.onKeyUp(for: .insertPlaceholder) { [weak self] in
-            self?.insertPlaceholderText()
         }
         
         // Set up audio engine
@@ -279,10 +269,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 if !transcription.isEmpty {
                     print("✅ Transcription: \"\(transcription)\"")
                     
-                    // Copy to clipboard
-                    let pasteboard = NSPasteboard.general
-                    pasteboard.clearContents()
-                    pasteboard.setString(transcription, forType: .string)
+                    // Paste the transcription at cursor position
+                    pasteTextAtCursor(transcription)
                     
                     // Show notification
                     showTranscriptionNotification(transcription)
@@ -300,7 +288,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let notification = NSUserNotification()
         notification.title = "Transcription Complete"
         notification.informativeText = text
-        notification.subtitle = "Copied to clipboard"
+        notification.subtitle = "Pasted at cursor"
         notification.soundName = NSUserNotificationDefaultSoundName
         NSUserNotificationCenter.default.deliver(notification)
     }
@@ -313,9 +301,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSUserNotificationCenter.default.deliver(notification)
     }
     
-    func insertPlaceholderText() {
-        let placeholderText = "Lorem ipsum dolor sit amet, consectetur adipiscing elit."
-        
+    func pasteTextAtCursor(_ text: String) {
         // Save current clipboard contents
         let pasteboard = NSPasteboard.general
         let savedTypes = pasteboard.types ?? []
@@ -330,9 +316,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         print("📋 Saved \(savedItems.count) clipboard types")
         
-        // Clear clipboard and set our placeholder text
+        // Clear clipboard and set our text
         pasteboard.clearContents()
-        pasteboard.setString(placeholderText, forType: .string)
+        pasteboard.setString(text, forType: .string)
         
         // Simulate Cmd+V to paste
         let source = CGEventSource(stateID: .hidSystemState)
@@ -349,7 +335,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             keyUp.post(tap: .cghidEventTap)
         }
         
-        print("✅ Pasted placeholder text")
+        print("✅ Pasted transcribed text")
         
         // Restore original clipboard contents after a brief delay
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {

@@ -80,6 +80,7 @@ struct ModelCard: View {
     let isDownloading: Bool
     let downloadProgress: Double
     let downloadError: String?
+    let loadingState: ModelStateManager.ModelLoadingState
     let onSelect: () -> Void
     let onDownload: () -> Void
     
@@ -138,12 +139,31 @@ struct ModelCard: View {
             
             // Download button or status
             if isDownloaded {
-                HStack {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(.green)
-                    Text("Downloaded")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                switch loadingState {
+                case .loading:
+                    HStack {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                        Text("Loading...")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                case .loaded:
+                    HStack {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(.green)
+                        Text("Loaded")
+                            .font(.caption)
+                            .foregroundColor(.green)
+                    }
+                default:
+                    HStack {
+                        Image(systemName: "checkmark.circle")
+                            .foregroundColor(.blue)
+                        Text("Downloaded")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                 }
             } else if isDownloading {
                 HStack(spacing: 8) {

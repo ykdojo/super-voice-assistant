@@ -42,9 +42,14 @@ struct SettingsView: View {
                             isDownloading: downloadingModels.contains(model.name),
                             downloadProgress: downloadProgress[model.name] ?? 0,
                             downloadError: downloadErrors[model.name],
+                            loadingState: modelState.getLoadingState(for: model.name),
                             onSelect: {
                                 if modelState.downloadedModels.contains(model.name) {
                                     modelState.selectedModel = model.name
+                                    // Load the model when selected
+                                    Task {
+                                        _ = await modelState.loadModel(model.name)
+                                    }
                                 }
                             },
                             onDownload: {
@@ -182,6 +187,13 @@ struct SettingsView: View {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                         downloadingModels.remove(modelName)
                         downloadProgress.removeValue(forKey: modelName)
+                    }
+                    
+                    // Auto-load the model after download if it's the selected one
+                    if modelState.selectedModel == modelName {
+                        Task {
+                            _ = await modelState.loadModel(modelName)
+                        }
                     }
                 }
                 

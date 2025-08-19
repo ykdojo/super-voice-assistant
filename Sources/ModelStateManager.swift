@@ -7,6 +7,14 @@ import SharedModels
 class ModelStateManager: ObservableObject {
     static let shared = ModelStateManager()
     
+    enum ModelLoadingState: Equatable {
+        case notDownloaded
+        case downloading(progress: Double)
+        case downloaded
+        case loading
+        case loaded
+    }
+    
     @Published var downloadedModels: Set<String> = []
     @Published var isCheckingModels = true  // Start as true to prevent flash
     @Published var selectedModel: String? = nil {
@@ -19,6 +27,8 @@ class ModelStateManager: ObservableObject {
             }
         }
     }
+    @Published var modelLoadingStates: [String: ModelLoadingState] = [:]
+    @Published var loadedWhisperKit: WhisperKit? = nil
     
     private init() {
         // Restore the selected model from UserDefaults
@@ -80,6 +90,18 @@ class ModelStateManager: ObservableObject {
         await MainActor.run {
             self.downloadedModels = newDownloadedModels
             
+            // Update loading states for downloaded models
+            for model in ModelData.availableModels {
+                if newDownloadedModels.contains(model.name) {
+                    // Only set to downloaded if not already loaded
+                    if modelLoadingStates[model.name] != .loaded {
+                        setLoadingState(for: model.name, state: .downloaded)
+                    }
+                } else {
+                    setLoadingState(for: model.name, state: .notDownloaded)
+                }
+            }
+            
             // If no model is selected but we have downloaded models, select the first one
             // Or if the selected model is no longer available, select the first one
             if let selected = self.selectedModel, !newDownloadedModels.contains(selected) {
@@ -95,6 +117,7 @@ class ModelStateManager: ObservableObject {
     
     func markModelAsDownloaded(_ modelName: String) {
         downloadedModels.insert(modelName)
+        setLoadingState(for: modelName, state: .downloaded)
         
         // If this is the first downloaded model and no model is selected, select it
         if selectedModel == nil {
@@ -116,5 +139,79 @@ class ModelStateManager: ObservableObject {
             .appendingPathComponent("argmaxinc")
             .appendingPathComponent("whisperkit-coreml")
             .appendingPathComponent(whisperKitModelName)
+    }
+    
+    func getLoadingState(for modelName: String) -> ModelLoadingState {
+        if let state = modelLoadingStates[modelName] {
+            return state
+        }
+        
+        // Determine state based on what we know
+        if downloadedModels.contains(modelName) {
+            // Check if it's the currently loaded model
+            if selectedModel == modelName && loadedWhisperKit != nil {
+                return .loaded
+            }
+            return .downloaded
+        }
+        
+        return .notDownloaded
+    }
+    
+    func setLoadingState(for modelName: String, state: ModelLoadingState) {
+        modelLoadingStates[modelName] = state
+    }
+    
+    func loadModel(_ modelName: String) async -> WhisperKit? {
+        guard let modelInfo = ModelData.availableModels.first(where: { $0.name == modelName }) else {
+            print("Model info not found for: \(modelName)")
+            return nil
+        }
+        
+        let whisperKitModelName = modelInfo.whisperKitModelName
+        let modelPath = getModelPath(for: whisperKitModelName)
+        
+        guard WhisperModelManager.shared.isModelDownloaded(whisperKitModelName) else {
+            print("Model \(modelName) is not downloaded")
+            return nil
+        }
+        
+        // Update state to loading
+        await MainActor.run {
+            setLoadingState(for: modelName, state: .loading)
+        }
+        
+        do {
+            print("Loading WhisperKit with model: \(modelName)")
+            let whisperKit = try await WhisperKit(
+                modelFolder: modelPath.path,
+                verbose: false,
+                logLevel: .error
+            )
+            
+            // Update state to loaded
+            await MainActor.run {
+                self.loadedWhisperKit = whisperKit
+                setLoadingState(for: modelName, state: .loaded)
+                // Clear loading states for other models
+                for model in ModelData.availableModels where model.name != modelName {
+                    if modelLoadingStates[model.name] == .loaded || modelLoadingStates[model.name] == .loading {
+                        setLoadingState(for: model.name, state: .downloaded)
+                    }
+                }
+            }
+            
+            print("WhisperKit loaded successfully")
+            return whisperKit
+        } catch {
+            print("Failed to load WhisperKit: \(error)")
+            
+            // Revert state to downloaded
+            await MainActor.run {
+                setLoadingState(for: modelName, state: .downloaded)
+            }
+            
+            return nil
+        }
     }
 }

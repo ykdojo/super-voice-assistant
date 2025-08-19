@@ -19,7 +19,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var inputNode: AVAudioInputNode!
     private var audioBuffer: [Float] = []
     private var displayTimer: Timer?
-    private var whisperKit: WhisperKit?
     private let sampleRate: Double = 16000
     private var modelCancellable: AnyCancellable?
     
@@ -61,17 +60,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             print("Model check completed at startup")
             
             // Load the initially selected model
-            await loadWhisperModel()
+            if let selectedModel = ModelStateManager.shared.selectedModel {
+                _ = await ModelStateManager.shared.loadModel(selectedModel)
+            }
         }
         
         // Observe model selection changes
         modelCancellable = ModelStateManager.shared.$selectedModel
             .dropFirst() // Skip the initial value
-            .sink { [weak self] _ in
-                Task { [weak self] in
-                    // Reload the model when selection changes
-                    self?.whisperKit = nil // Clear the old model
-                    await self?.loadWhisperModel()
+            .sink { selectedModel in
+                guard let selectedModel = selectedModel else { return }
+                Task {
+                    // Load the new model
+                    _ = await ModelStateManager.shared.loadModel(selectedModel)
                 }
             }
     }
@@ -221,40 +222,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     @MainActor
-    func loadWhisperModel() async {
-        guard let selectedModelName = ModelStateManager.shared.selectedModel else {
-            print("No model selected")
-            return
-        }
-        
-        guard let modelInfo = ModelData.availableModels.first(where: { $0.name == selectedModelName }) else {
-            print("Model info not found for: \(selectedModelName)")
-            return
-        }
-        
-        let whisperKitModelName = modelInfo.whisperKitModelName
-        let modelPath = ModelStateManager.shared.getModelPath(for: whisperKitModelName)
-        
-        guard WhisperModelManager.shared.isModelDownloaded(whisperKitModelName) else {
-            print("Model \(selectedModelName) is not downloaded")
-            return
-        }
-        
-        do {
-            print("Loading WhisperKit with model: \(selectedModelName)")
-            whisperKit = try await WhisperKit(
-                modelFolder: modelPath.path,
-                verbose: false,
-                logLevel: .error
-            )
-            print("WhisperKit loaded successfully")
-        } catch {
-            print("Failed to load WhisperKit: \(error)")
-            whisperKit = nil
-        }
-    }
-    
-    @MainActor
     func processRecording() async {
         guard !audioBuffer.isEmpty else {
             print("No audio recorded")
@@ -262,11 +229,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
         
         // Load model if not already loaded
-        if whisperKit == nil {
-            await loadWhisperModel()
+        if ModelStateManager.shared.loadedWhisperKit == nil {
+            if let selectedModel = ModelStateManager.shared.selectedModel {
+                _ = await ModelStateManager.shared.loadModel(selectedModel)
+            }
         }
         
-        guard let whisperKit = whisperKit else {
+        guard let whisperKit = ModelStateManager.shared.loadedWhisperKit else {
             print("WhisperKit not initialized - please select and download a model in Settings")
             showTranscriptionError("No model loaded. Please select a model in Settings.")
             return

@@ -9,9 +9,21 @@ class ModelStateManager: ObservableObject {
     
     @Published var downloadedModels: Set<String> = []
     @Published var isCheckingModels = true  // Start as true to prevent flash
-    @Published var selectedModel: String? = nil
+    @Published var selectedModel: String? = nil {
+        didSet {
+            // Persist the selected model to UserDefaults
+            if let model = selectedModel {
+                UserDefaults.standard.set(model, forKey: "selectedWhisperModel")
+            } else {
+                UserDefaults.standard.removeObject(forKey: "selectedWhisperModel")
+            }
+        }
+    }
     
-    private init() {}
+    private init() {
+        // Restore the selected model from UserDefaults
+        self.selectedModel = UserDefaults.standard.string(forKey: "selectedWhisperModel")
+    }
     
     func checkDownloadedModels() async {
         // Don't reset to empty - keep existing state until check completes
@@ -69,7 +81,11 @@ class ModelStateManager: ObservableObject {
             self.downloadedModels = newDownloadedModels
             
             // If no model is selected but we have downloaded models, select the first one
-            if self.selectedModel == nil && !newDownloadedModels.isEmpty {
+            // Or if the selected model is no longer available, select the first one
+            if let selected = self.selectedModel, !newDownloadedModels.contains(selected) {
+                // Previously selected model is no longer available
+                self.selectedModel = newDownloadedModels.first
+            } else if self.selectedModel == nil && !newDownloadedModels.isEmpty {
                 self.selectedModel = newDownloadedModels.first
             }
             

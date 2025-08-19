@@ -14,6 +14,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var statusItem: NSStatusItem!
     var isRecording = false
     var settingsWindow: SettingsWindowController?
+    private var copyFallbackWindow: CopyFallbackWindow?
     
     private var audioEngine: AVAudioEngine!
     private var inputNode: AVAudioInputNode!
@@ -302,12 +303,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     func pasteTextAtCursor(_ text: String) {
-        // Save current clipboard contents
+        // Save current clipboard contents first
         let pasteboard = NSPasteboard.general
         let savedTypes = pasteboard.types ?? []
         var savedItems: [NSPasteboard.PasteboardType: Data] = [:]
         
-        // Save all data from the clipboard
         for type in savedTypes {
             if let data = pasteboard.data(forType: type) {
                 savedItems[type] = data
@@ -316,38 +316,65 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         print("📋 Saved \(savedItems.count) clipboard types")
         
-        // Clear clipboard and set our text
+        // Set our text to clipboard
         pasteboard.clearContents()
         pasteboard.setString(text, forType: .string)
         
-        // Simulate Cmd+V to paste
+        // Try to paste
         let source = CGEventSource(stateID: .hidSystemState)
         
-        // Key down for Cmd+V
-        if let keyDown = CGEvent(keyboardEventSource: source, virtualKey: 0x09, keyDown: true) { // 0x09 is 'V' key
+        // Create paste event
+        if let keyDown = CGEvent(keyboardEventSource: source, virtualKey: 0x09, keyDown: true) {
             keyDown.flags = .maskCommand
             keyDown.post(tap: .cghidEventTap)
         }
         
-        // Key up for V (no command flag on key up!)
         if let keyUp = CGEvent(keyboardEventSource: source, virtualKey: 0x09, keyDown: false) {
-            // Don't set command flag on key up - just release the V key
             keyUp.post(tap: .cghidEventTap)
         }
         
-        print("✅ Pasted transcribed text")
+        print("✅ Paste command sent")
         
-        // Restore original clipboard contents after a brief delay
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-            pasteboard.clearContents()
+        // After a short delay, check if we should show fallback
+        // The delay allows the paste to complete or fail
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+            // Get the frontmost app to see where we tried to paste
+            let frontmostApp = NSWorkspace.shared.frontmostApplication
+            let appName = frontmostApp?.localizedName ?? "Unknown"
+            let bundleId = frontmostApp?.bundleIdentifier ?? ""
             
-            // Restore all saved types
+            print("📱 Attempted paste in: \(appName) (\(bundleId))")
+            
+            // If we detect common scenarios where paste might fail, show fallback
+            let problematicApps = [
+                "com.apple.finder",
+                "com.apple.dock", 
+                "com.apple.systempreferences"
+            ]
+            
+            // Check if the app is known to not accept pastes well
+            // OR if the user is in an unusual context
+            if problematicApps.contains(bundleId) {
+                print("⚠️ Detected potential paste failure - showing fallback window")
+                self?.showCopyFallbackWindow(text)
+            }
+            
+            // Restore clipboard
+            pasteboard.clearContents()
             for (type, data) in savedItems {
                 pasteboard.setData(data, forType: type)
             }
-            
-            print("♻️ Restored \(savedItems.count) clipboard types")
+            print("♻️ Restored clipboard")
         }
+    }
+    
+    func showCopyFallbackWindow(_ text: String) {
+        // Close any existing fallback window
+        copyFallbackWindow?.close()
+        
+        // Create and show new window
+        copyFallbackWindow = CopyFallbackWindow(text: text)
+        copyFallbackWindow?.show()
     }
     
 }

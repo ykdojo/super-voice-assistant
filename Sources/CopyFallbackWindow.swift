@@ -84,12 +84,12 @@ class CopyFallbackWindow: NSWindow {
             scrollView.bottomAnchor.constraint(equalTo: copyButton.topAnchor, constant: -20),
             
             copyButton.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -20),
-            copyButton.centerXAnchor.constraint(equalTo: contentView.centerXAnchor, constant: -60),
-            copyButton.widthAnchor.constraint(equalToConstant: 110),
+            copyButton.centerXAnchor.constraint(equalTo: contentView.centerXAnchor, constant: -75),
+            copyButton.widthAnchor.constraint(equalToConstant: 140),
             
             closeButton.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -20),
-            closeButton.centerXAnchor.constraint(equalTo: contentView.centerXAnchor, constant: 60),
-            closeButton.widthAnchor.constraint(equalToConstant: 110)
+            closeButton.centerXAnchor.constraint(equalTo: contentView.centerXAnchor, constant: 75),
+            closeButton.widthAnchor.constraint(equalToConstant: 140)
         ])
         
         selectAllText()

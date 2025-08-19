@@ -352,7 +352,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         print("✅ Pasted placeholder text")
         
         // Restore original clipboard contents after a brief delay
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
             pasteboard.clearContents()
             
             // Restore all saved types

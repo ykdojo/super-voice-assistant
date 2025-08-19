@@ -4,15 +4,7 @@ A native macOS dictation app with global hotkey support for instant voice-to-tex
 
 ## Current Status
 
-The app currently supports:
-- ✅ Menu bar app with waveform icon
-- ✅ Global hotkey (Shift+Alt+Z) to start/stop recording and transcribe
-- ✅ Audio recording with visual feedback (live level meter in menu bar)
-- ✅ WhisperKit transcription with automatic text pasting
-- ✅ Settings window with WhisperKit model selection and download
-- ✅ Model download progress and loading states
-- ✅ Model persistence across app restarts
-- ✅ Model management utilities
+A fully functional macOS menu bar app that transcribes voice to text using WhisperKit. Press Shift+Alt+Z to record, and the transcribed text automatically pastes at your cursor position. The app includes a settings window for downloading and managing WhisperKit models.
 
 ## Requirements
 

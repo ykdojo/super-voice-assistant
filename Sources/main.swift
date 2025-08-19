@@ -26,6 +26,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var modelCancellable: AnyCancellable?
     private var isTranscribing = false
     private var transcriptionTimer: Timer?
+    private var escapeKeyMonitor: Any?
     
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Create the status bar item
@@ -143,6 +144,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func startRecording() {
         audioBuffer.removeAll()
         
+        // Set up global Escape key monitor to cancel recording
+        // Global monitors work across all applications
+        escapeKeyMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            if event.keyCode == 53 { // 53 is the key code for Escape
+                if self?.isRecording == true {
+                    print("🛑 Recording cancelled by Escape key")
+                    DispatchQueue.main.async {
+                        self?.cancelRecording()
+                    }
+                }
+            }
+        }
+        
         let recordingFormat = inputNode.outputFormat(forBus: 0)
         
         inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { [weak self] buffer, _ in
@@ -202,6 +216,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         inputNode.removeTap(onBus: 0)
         displayTimer?.invalidate()
         
+        // Remove Escape key monitor
+        if let monitor = escapeKeyMonitor {
+            NSEvent.removeMonitor(monitor)
+            escapeKeyMonitor = nil
+        }
+        
         // Don't reset the icon here - let processRecording handle the transition
         
         print("⏹ Recording stopped")
@@ -211,6 +231,34 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         Task {
             await processRecording()
         }
+    }
+    
+    func cancelRecording() {
+        isRecording = false
+        audioEngine.stop()
+        inputNode.removeTap(onBus: 0)
+        displayTimer?.invalidate()
+        audioBuffer.removeAll()
+        
+        // Remove Escape key monitor
+        if let monitor = escapeKeyMonitor {
+            NSEvent.removeMonitor(monitor)
+            escapeKeyMonitor = nil
+        }
+        
+        // Reset the status bar icon
+        if let button = statusItem.button {
+            button.image = NSImage(systemSymbolName: "waveform", accessibilityDescription: "Voice Assistant")
+            button.title = ""
+        }
+        
+        print("Recording cancelled")
+        
+        // Show notification
+        let notification = NSUserNotification()
+        notification.title = "Recording Cancelled"
+        notification.informativeText = "Recording was cancelled"
+        NSUserNotificationCenter.default.deliver(notification)
     }
     
     func updateStatusBarWithLevel(db: Float) {

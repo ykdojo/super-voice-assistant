@@ -22,6 +22,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var displayTimer: Timer?
     private let sampleRate: Double = 16000
     private var modelCancellable: AnyCancellable?
+    private var isTranscribing = false
+    private var transcriptionTimer: Timer?
     
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Create the status bar item
@@ -184,10 +186,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         inputNode.removeTap(onBus: 0)
         displayTimer?.invalidate()
         
-        if let button = statusItem.button {
-            button.image = NSImage(systemSymbolName: "waveform", accessibilityDescription: "Voice Assistant")
-            button.title = ""
-        }
+        // Don't reset the icon here - let processRecording handle the transition
         
         print("⏹ Recording stopped")
         print("Captured \(audioBuffer.count) audio samples")
@@ -222,12 +221,58 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
     
+    func startTranscriptionIndicator() {
+        isTranscribing = true
+        
+        // Show initial indicator
+        if let button = statusItem.button {
+            button.image = nil
+            button.title = "⚙️ Processing..."
+        }
+        
+        // Animate the indicator
+        var dotCount = 0
+        transcriptionTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+            guard let self = self, self.isTranscribing else {
+                self?.transcriptionTimer?.invalidate()
+                return
+            }
+            
+            if let button = self.statusItem.button {
+                dotCount = (dotCount + 1) % 4
+                let dots = String(repeating: ".", count: dotCount)
+                let spaces = String(repeating: " ", count: 3 - dotCount)
+                button.title = "⚙️ Processing" + dots + spaces
+            }
+        }
+    }
+    
+    func stopTranscriptionIndicator() {
+        isTranscribing = false
+        transcriptionTimer?.invalidate()
+        transcriptionTimer = nil
+        
+        // Reset to default icon
+        if let button = statusItem.button {
+            button.image = NSImage(systemSymbolName: "waveform", accessibilityDescription: "Voice Assistant")
+            button.title = ""
+        }
+    }
+    
     @MainActor
     func processRecording() async {
         guard !audioBuffer.isEmpty else {
             print("No audio recorded")
+            // Reset icon since we're not processing
+            if let button = statusItem.button {
+                button.image = NSImage(systemSymbolName: "waveform", accessibilityDescription: "Voice Assistant")
+                button.title = ""
+            }
             return
         }
+        
+        // Start transcription indicator
+        startTranscriptionIndicator()
         
         // Load model if not already loaded
         if ModelStateManager.shared.loadedWhisperKit == nil {
@@ -238,6 +283,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         guard let whisperKit = ModelStateManager.shared.loadedWhisperKit else {
             print("WhisperKit not initialized - please select and download a model in Settings")
+            stopTranscriptionIndicator()
             showTranscriptionError("No model loaded. Please select a model in Settings.")
             return
         }
@@ -270,6 +316,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 if !transcription.isEmpty {
                     print("✅ Transcription: \"\(transcription)\"")
                     
+                    // Stop transcription indicator before pasting
+                    stopTranscriptionIndicator()
+                    
                     // Paste the transcription at cursor position
                     pasteTextAtCursor(transcription)
                     
@@ -277,10 +326,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     showTranscriptionNotification(transcription)
                 } else {
                     print("No transcription generated (possibly silence)")
+                    stopTranscriptionIndicator()
                 }
+            } else {
+                stopTranscriptionIndicator()
             }
         } catch {
             print("Transcription error: \(error)")
+            stopTranscriptionIndicator()
             showTranscriptionError("Transcription failed: \(error.localizedDescription)")
         }
     }

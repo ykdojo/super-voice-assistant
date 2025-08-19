@@ -69,11 +69,6 @@ swift run TestTranscription
 swift run TestLiveTranscription
 ```
 
-## Model Management
-
-WhisperKit models are stored in: `~/Documents/huggingface/models/argmaxinc/whisperkit-coreml/`
-
-Available models include various sizes (tiny, base, small, large) and optimized versions (turbo, distil). Use `swift run ListModels` to see all 22+ available models.
 
 ## Tech Stack
 

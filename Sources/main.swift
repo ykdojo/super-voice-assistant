@@ -8,6 +8,7 @@ import Combine
 
 extension KeyboardShortcuts.Name {
     static let startRecording = Self("startRecording")
+    static let showHistory = Self("showHistory")
 }
 
 class AppDelegate: NSObject, NSApplicationDelegate {
@@ -15,6 +16,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var isRecording = false
     var settingsWindow: SettingsWindowController?
     private var copyFallbackWindow: CopyFallbackWindow?
+    private var historyWindow: TranscriptionHistoryWindow?
     
     private var audioEngine: AVAudioEngine!
     private var inputNode: AVAudioInputNode!
@@ -37,18 +39,25 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Create menu
         let menu = NSMenu()
         menu.addItem(NSMenuItem(title: "Recording: Press Shift+Alt+Z", action: nil, keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "History: Press Shift+Alt+A", action: nil, keyEquivalent: ""))
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Settings...", action: #selector(openSettings), keyEquivalent: ","))
+        menu.addItem(NSMenuItem(title: "View History...", action: #selector(showTranscriptionHistory), keyEquivalent: "h"))
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         statusItem.menu = menu
         
-        // Set default keyboard shortcut (Shift+Alt+Z)
+        // Set default keyboard shortcuts
         KeyboardShortcuts.setShortcut(.init(.z, modifiers: [.shift, .option]), for: .startRecording)
+        KeyboardShortcuts.setShortcut(.init(.a, modifiers: [.shift, .option]), for: .showHistory)
         
-        // Set up keyboard shortcut handler
+        // Set up keyboard shortcut handlers
         KeyboardShortcuts.onKeyUp(for: .startRecording) { [weak self] in
             self?.toggleRecording()
+        }
+        
+        KeyboardShortcuts.onKeyUp(for: .showHistory) { [weak self] in
+            self?.showTranscriptionHistory()
         }
         
         // Set up audio engine
@@ -112,6 +121,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             settingsWindow = SettingsWindowController()
         }
         settingsWindow?.showWindow()
+    }
+    
+    @objc func showTranscriptionHistory() {
+        if historyWindow == nil {
+            historyWindow = TranscriptionHistoryWindow()
+        }
+        historyWindow?.show()
     }
     
     func toggleRecording() {
@@ -332,6 +348,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 let transcription = firstResult.text.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
                 if !transcription.isEmpty {
                     print("✅ Transcription: \"\(transcription)\"")
+                    
+                    // Save to history
+                    TranscriptionHistory.shared.addEntry(transcription)
                     
                     // Stop transcription indicator before pasting
                     stopTranscriptionIndicator()

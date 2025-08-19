@@ -76,4 +76,10 @@ class TranscriptionHistory {
         entries.removeAll()
         saveHistory()
     }
+    
+    func deleteEntry(at index: Int) {
+        guard index >= 0 && index < entries.count else { return }
+        entries.remove(at: index)
+        saveHistory()
+    }
 }

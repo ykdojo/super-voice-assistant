@@ -59,16 +59,16 @@ class TranscriptionHistoryWindow: NSWindow, NSTableViewDelegate, NSTableViewData
         tableView.allowsTypeSelect = true
         tableView.usesAlternatingRowBackgroundColors = true
         
-        // Create columns in order: Transcription, Action, Time
+        // Create columns in order: Action, Transcription, Time
+        let actionColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("action"))
+        actionColumn.title = "Actions"
+        actionColumn.width = 120
+        tableView.addTableColumn(actionColumn)
+        
         let textColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("text"))
         textColumn.title = "Transcription"
-        textColumn.width = 500
+        textColumn.width = 460
         tableView.addTableColumn(textColumn)
-        
-        let actionColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("action"))
-        actionColumn.title = "Action"
-        actionColumn.width = 80
-        tableView.addTableColumn(actionColumn)
         
         let dateColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("date"))
         dateColumn.title = "Time"
@@ -171,6 +171,23 @@ class TranscriptionHistoryWindow: NSWindow, NSTableViewDelegate, NSTableViewData
         }
     }
     
+    @objc private func deleteTranscription(_ sender: NSButton) {
+        let row = sender.tag
+        guard row >= 0 && row < entries.count else { return }
+        
+        let alert = NSAlert()
+        alert.messageText = "Delete Entry"
+        alert.informativeText = "Are you sure you want to delete this transcription?"
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "Delete")
+        alert.addButton(withTitle: "Cancel")
+        
+        if alert.runModal() == .alertFirstButtonReturn {
+            TranscriptionHistory.shared.deleteEntry(at: row)
+            loadEntries()
+        }
+    }
+    
     // MARK: - NSTableViewDataSource
     
     func numberOfRows(in tableView: NSTableView) -> Int {
@@ -194,14 +211,20 @@ class TranscriptionHistoryWindow: NSWindow, NSTableViewDelegate, NSTableViewData
             textField.backgroundColor = .clear
             textField.lineBreakMode = .byTruncatingTail
             textField.maximumNumberOfLines = 2
-            textField.frame = CGRect(x: 5, y: 5, width: 490, height: 50)
+            textField.frame = CGRect(x: 5, y: 5, width: 450, height: 50)
             cellView.addSubview(textField)
         } else if tableColumn?.identifier.rawValue == "action" {
-            let button = NSButton(title: "Copy", target: self, action: #selector(copyTranscription(_:)))
-            button.bezelStyle = .inline
-            button.tag = row
-            button.frame = CGRect(x: 5, y: 20, width: 70, height: 20)
-            cellView.addSubview(button)
+            let copyButton = NSButton(title: "Copy", target: self, action: #selector(copyTranscription(_:)))
+            copyButton.bezelStyle = .inline
+            copyButton.tag = row
+            copyButton.frame = CGRect(x: 5, y: 30, width: 50, height: 20)
+            cellView.addSubview(copyButton)
+            
+            let deleteButton = NSButton(title: "Delete", target: self, action: #selector(deleteTranscription(_:)))
+            deleteButton.bezelStyle = .inline
+            deleteButton.tag = row
+            deleteButton.frame = CGRect(x: 60, y: 30, width: 55, height: 20)
+            cellView.addSubview(deleteButton)
         } else if tableColumn?.identifier.rawValue == "date" {
             let textField = NSTextField(labelWithString: formatDate(entry.timestamp))
             textField.font = .systemFont(ofSize: 11)

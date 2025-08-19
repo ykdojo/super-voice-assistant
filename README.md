@@ -17,6 +17,7 @@ The app currently supports:
 ## Requirements
 
 - macOS 14.0 or later
+- Xcode 15+ or Xcode Command Line Tools (for Swift 5.9+)
 - Microphone permissions
 
 ## Installation & Running

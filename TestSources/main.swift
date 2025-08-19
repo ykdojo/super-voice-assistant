@@ -96,11 +96,32 @@ class WhisperModelDownloader {
         
         print() // Add newline after progress bar
         
-        // Mark model as successfully downloaded
-        modelManager.markModelAsDownloaded(modelName)
+        print("   📁 Downloaded to: \(modelFolder)")
+        print("   🔍 Validating model by attempting to load...")
         
-        print("   ✅ Downloaded successfully to: \(modelFolder)")
-        print("   ✅ Model marked as complete")
+        // Validate the model by trying to load it
+        do {
+            let _ = try await WhisperKit(
+                modelFolder: modelFolder.path,
+                verbose: false,
+                logLevel: .error
+            )
+            
+            // If loading succeeds, mark as complete
+            modelManager.markModelAsDownloaded(modelName)
+            print("   ✅ Model validated successfully!")
+            print("   ✅ Model marked as complete")
+            
+        } catch {
+            print("   ❌ Model validation failed!")
+            print("   ❌ Error: \(error.localizedDescription)")
+            print("   ⚠️  Download may be incomplete or corrupted")
+            print("   💡 Try downloading again with --force flag")
+            
+            // Don't mark as complete if validation fails
+            throw error
+        }
+        
         return modelFolder
     }
     
@@ -116,10 +137,13 @@ class WhisperModelDownloader {
 let args = CommandLine.arguments
 var modelIndex: Int? = nil
 var forceRedownload = false
+var downloadAll = false
 
 for (index, arg) in args.enumerated() {
     if arg == "--force" || arg == "-f" {
         forceRedownload = true
+    } else if arg == "--all" {
+        downloadAll = true
     } else if index > 0 && Int(arg) != nil {
         modelIndex = Int(arg)
     }
@@ -128,7 +152,7 @@ for (index, arg) in args.enumerated() {
 Task {
     do {
         if let index = modelIndex, index >= 1 && index <= models.count {
-            // Test specific model
+            // Download specific model
             let (modelName, displayName) = models[index - 1]
             let modelPath = try await WhisperModelDownloader.downloadModel(
                 modelName: modelName, 
@@ -136,18 +160,9 @@ Task {
                 forceRedownload: forceRedownload
             )
             print("\n✅ Success! Model at: \(modelPath)")
-        } else {
-            // Show menu
-            print("\nSelect a model to test:")
-            for (index, (_, displayName)) in models.enumerated() {
-                print("\(index + 1). \(displayName)")
-            }
-            print("\nUsage: swift run TestDownload [1-\(models.count)] [--force]")
-            print("Example: swift run TestDownload 1")
-            print("         swift run TestDownload 1 --force  (re-download even if exists)")
-            
-            // Test all models if no argument provided
-            print("\n🔄 Testing all models sequentially...")
+        } else if downloadAll {
+            // Download all models when --all flag is used
+            print("\n🔄 Downloading all models sequentially...")
             for (modelName, displayName) in models {
                 _ = try await WhisperModelDownloader.downloadModel(
                     modelName: modelName,
@@ -156,6 +171,20 @@ Task {
                 )
             }
             print("\n✅ All models downloaded successfully!")
+        } else {
+            // Show menu and exit
+            print("\nAvailable models:")
+            for (index, (_, displayName)) in models.enumerated() {
+                print("\(index + 1). \(displayName)")
+            }
+            print("\nUsage:")
+            print("  swift run TestDownload <model_number>        Download specific model")
+            print("  swift run TestDownload --all                  Download all models")
+            print("  swift run TestDownload <model_number> --force Re-download specific model")
+            print("  swift run TestDownload --all --force          Re-download all models")
+            print("\nExamples:")
+            print("  swift run TestDownload 1                     Download model 1")
+            print("  swift run TestDownload --all                 Download all models")
         }
         exit(0)
     } catch {

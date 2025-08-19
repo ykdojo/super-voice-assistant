@@ -27,6 +27,9 @@ let package = Package(
         .executable(
             name: "ValidateModels",
             targets: ["ValidateModels"]),
+        .executable(
+            name: "TestTranscription",
+            targets: ["TestTranscription"]),
         .library(
             name: "SharedModels",
             targets: ["SharedModels"])
@@ -67,6 +70,10 @@ let package = Package(
         .executableTarget(
             name: "ValidateModels",
             dependencies: ["WhisperKit", "SharedModels"],
-            path: "ValidateModelsSources")
+            path: "ValidateModelsSources"),
+        .executableTarget(
+            name: "TestTranscription",
+            dependencies: ["WhisperKit", "SharedModels"],
+            path: "TestTranscriptionSources")
     ]
 )

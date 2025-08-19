@@ -28,7 +28,7 @@ func validateModel(modelName: String, displayName: String) async {
     
     // Check if model is marked as downloaded
     if modelManager.isModelDownloaded(modelName) {
-        print("  ✅ Marked as downloaded")
+        print("  ✅ Model complete and ready for use")
         
         // Show metadata
         if let metadata = modelManager.getModelMetadata(modelName) {
@@ -49,15 +49,10 @@ func validateModel(modelName: String, displayName: String) async {
     } else {
         print("  ⚠️  Found on disk but not marked as complete")
         
-        // Check basic integrity without loading the full model
-        if modelManager.validateModelIntegrity(modelName) {
-            print("  📁 Model files present, marking as downloaded")
-            modelManager.markModelAsDownloaded(modelName)
-            print("  ✅ Marked as downloaded")
-        } else {
-            print("  ❌ Model appears incomplete")
-            print("  💡 Tip: Delete the model folder and re-download")
-        }
+        // Don't auto-validate or mark as complete - this is likely an incomplete download
+        print("  ❌ Model appears incomplete or partially downloaded")
+        print("  💡 Tip: Use 'swift run TestDownload' to complete the download")
+        print("       or delete the folder and re-download")
     }
     
     print("")

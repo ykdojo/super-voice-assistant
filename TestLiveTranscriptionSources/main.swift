@@ -114,6 +114,18 @@ class LiveTranscriptionTest {
             return nil
         }
         
+        // Calculate RMS (Root Mean Square) to detect silence
+        let rms = sqrt(audioBuffer.reduce(0) { $0 + $1 * $1 } / Float(audioBuffer.count))
+        let db = 20 * log10(max(rms, 0.00001))
+        
+        // Threshold for silence detection (conservative: -50dB to avoid false positives)
+        let silenceThreshold: Float = -50.0
+        
+        if db < silenceThreshold {
+            print("Audio too quiet (RMS: \(rms), dB: \(db)). Skipping transcription.")
+            return nil
+        }
+        
         print("Transcribing \(audioBuffer.count) samples (\(Double(audioBuffer.count) / sampleRate) seconds)...")
         
         let transcriptionResult = try await whisperKit.transcribe(

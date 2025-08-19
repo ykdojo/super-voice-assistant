@@ -271,6 +271,23 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         
+        // Calculate RMS (Root Mean Square) to detect silence
+        let rms = sqrt(audioBuffer.reduce(0) { $0 + $1 * $1 } / Float(audioBuffer.count))
+        let db = 20 * log10(max(rms, 0.00001))
+        
+        // Threshold for silence detection (conservative: -50dB to avoid false positives)
+        let silenceThreshold: Float = -50.0
+        
+        if db < silenceThreshold {
+            print("Audio too quiet (RMS: \(rms), dB: \(db)). Skipping transcription.")
+            // Reset icon since we're not processing
+            if let button = statusItem.button {
+                button.image = NSImage(systemSymbolName: "waveform", accessibilityDescription: "Voice Assistant")
+                button.title = ""
+            }
+            return
+        }
+        
         // Start transcription indicator
         startTranscriptionIndicator()
         

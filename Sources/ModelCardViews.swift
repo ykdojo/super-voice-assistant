@@ -143,7 +143,8 @@ struct ModelCard: View {
                 case .loading:
                     HStack {
                         ProgressView()
-                            .scaleEffect(0.8)
+                            .scaleEffect(0.5)
+                            .frame(width: 16, height: 16)
                         Text("Loading...")
                             .font(.caption)
                             .foregroundColor(.secondary)

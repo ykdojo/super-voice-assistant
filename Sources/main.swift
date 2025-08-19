@@ -2,6 +2,9 @@ import Cocoa
 import SwiftUI
 import KeyboardShortcuts
 import AVFoundation
+import WhisperKit
+import SharedModels
+import Combine
 
 extension KeyboardShortcuts.Name {
     static let startRecording = Self("startRecording")
@@ -16,6 +19,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var inputNode: AVAudioInputNode!
     private var audioBuffer: [Float] = []
     private var displayTimer: Timer?
+    private var whisperKit: WhisperKit?
+    private let sampleRate: Double = 16000
+    private var modelCancellable: AnyCancellable?
     
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Create the status bar item
@@ -53,7 +59,21 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         Task {
             await ModelStateManager.shared.checkDownloadedModels()
             print("Model check completed at startup")
+            
+            // Load the initially selected model
+            await loadWhisperModel()
         }
+        
+        // Observe model selection changes
+        modelCancellable = ModelStateManager.shared.$selectedModel
+            .dropFirst() // Skip the initial value
+            .sink { [weak self] _ in
+                Task { [weak self] in
+                    // Reload the model when selection changes
+                    self?.whisperKit = nil // Clear the old model
+                    await self?.loadWhisperModel()
+                }
+            }
     }
     
     func setupAudioEngine() {
@@ -110,11 +130,21 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             
             let channelData = buffer.floatChannelData?[0]
             let frameLength = Int(buffer.frameLength)
+            let inputSampleRate = buffer.format.sampleRate
             
             if let channelData = channelData {
-                for i in 0..<frameLength {
-                    self.audioBuffer.append(channelData[i])
+                // Collect raw samples
+                let samples = Array(UnsafeBufferPointer(start: channelData, count: frameLength))
+                
+                // Resample to 16kHz if needed for WhisperKit
+                if inputSampleRate != self.sampleRate {
+                    let ratio = Int(inputSampleRate / self.sampleRate)
+                    let resampledSamples = stride(from: 0, to: samples.count, by: ratio).map { samples[$0] }
+                    self.audioBuffer.append(contentsOf: resampledSamples)
+                } else {
+                    self.audioBuffer.append(contentsOf: samples)
                 }
+                
                 
                 let rms = sqrt(channelData.withMemoryRebound(to: Float.self, capacity: frameLength) { ptr in
                     var sum: Float = 0
@@ -159,6 +189,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         print("⏹ Recording stopped")
         print("Captured \(audioBuffer.count) audio samples")
+        
+        // Process the recording
+        Task {
+            await processRecording()
+        }
     }
     
     func updateStatusBarWithLevel(db: Float) {
@@ -183,6 +218,120 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             
             button.title = "● " + bar
         }
+    }
+    
+    @MainActor
+    func loadWhisperModel() async {
+        guard let selectedModelName = ModelStateManager.shared.selectedModel else {
+            print("No model selected")
+            return
+        }
+        
+        guard let modelInfo = ModelData.availableModels.first(where: { $0.name == selectedModelName }) else {
+            print("Model info not found for: \(selectedModelName)")
+            return
+        }
+        
+        let whisperKitModelName = modelInfo.whisperKitModelName
+        let modelPath = ModelStateManager.shared.getModelPath(for: whisperKitModelName)
+        
+        guard WhisperModelManager.shared.isModelDownloaded(whisperKitModelName) else {
+            print("Model \(selectedModelName) is not downloaded")
+            return
+        }
+        
+        do {
+            print("Loading WhisperKit with model: \(selectedModelName)")
+            whisperKit = try await WhisperKit(
+                modelFolder: modelPath.path,
+                verbose: false,
+                logLevel: .error
+            )
+            print("WhisperKit loaded successfully")
+        } catch {
+            print("Failed to load WhisperKit: \(error)")
+            whisperKit = nil
+        }
+    }
+    
+    @MainActor
+    func processRecording() async {
+        guard !audioBuffer.isEmpty else {
+            print("No audio recorded")
+            return
+        }
+        
+        // Load model if not already loaded
+        if whisperKit == nil {
+            await loadWhisperModel()
+        }
+        
+        guard let whisperKit = whisperKit else {
+            print("WhisperKit not initialized - please select and download a model in Settings")
+            showTranscriptionError("No model loaded. Please select a model in Settings.")
+            return
+        }
+        
+        print("Transcribing \(audioBuffer.count) samples (\(Double(audioBuffer.count) / sampleRate) seconds)...")
+        
+        do {
+            let transcriptionResult = try await whisperKit.transcribe(
+                audioArray: audioBuffer,
+                decodeOptions: DecodingOptions(
+                    verbose: false,
+                    task: .transcribe,
+                    language: "en",
+                    temperature: 0.0,
+                    temperatureFallbackCount: 3,
+                    sampleLength: 224,
+                    topK: 5,
+                    usePrefillPrompt: true,
+                    usePrefillCache: true,
+                    skipSpecialTokens: true,
+                    withoutTimestamps: false,
+                    clipTimestamps: [0],
+                    suppressBlank: true,
+                    supressTokens: nil
+                )
+            )
+            
+            if let firstResult = transcriptionResult.first {
+                let transcription = firstResult.text.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+                if !transcription.isEmpty {
+                    print("✅ Transcription: \"\(transcription)\"")
+                    
+                    // Copy to clipboard
+                    let pasteboard = NSPasteboard.general
+                    pasteboard.clearContents()
+                    pasteboard.setString(transcription, forType: .string)
+                    
+                    // Show notification
+                    showTranscriptionNotification(transcription)
+                } else {
+                    print("No transcription generated (possibly silence)")
+                }
+            }
+        } catch {
+            print("Transcription error: \(error)")
+            showTranscriptionError("Transcription failed: \(error.localizedDescription)")
+        }
+    }
+    
+    func showTranscriptionNotification(_ text: String) {
+        let notification = NSUserNotification()
+        notification.title = "Transcription Complete"
+        notification.informativeText = text
+        notification.subtitle = "Copied to clipboard"
+        notification.soundName = NSUserNotificationDefaultSoundName
+        NSUserNotificationCenter.default.deliver(notification)
+    }
+    
+    func showTranscriptionError(_ message: String) {
+        let notification = NSUserNotification()
+        notification.title = "Transcription Error"
+        notification.informativeText = message
+        notification.soundName = NSUserNotificationDefaultSoundName
+        NSUserNotificationCenter.default.deliver(notification)
     }
 }
 

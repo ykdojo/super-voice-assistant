@@ -8,6 +8,7 @@ import Combine
 
 extension KeyboardShortcuts.Name {
     static let startRecording = Self("startRecording")
+    static let insertPlaceholder = Self("insertPlaceholder")
 }
 
 class AppDelegate: NSObject, NSApplicationDelegate {
@@ -34,6 +35,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Create menu
         let menu = NSMenu()
         menu.addItem(NSMenuItem(title: "Recording: Press Shift+Alt+Z", action: nil, keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "Insert Text: Press Shift+Alt+A", action: nil, keyEquivalent: ""))
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Settings...", action: #selector(openSettings), keyEquivalent: ","))
         menu.addItem(NSMenuItem.separator())
@@ -43,9 +45,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Set default keyboard shortcut (Shift+Alt+Z)
         KeyboardShortcuts.setShortcut(.init(.z, modifiers: [.shift, .option]), for: .startRecording)
         
+        // Set default keyboard shortcut for placeholder text (Shift+Alt+A)
+        KeyboardShortcuts.setShortcut(.init(.a, modifiers: [.shift, .option]), for: .insertPlaceholder)
+        
         // Set up keyboard shortcut handler
         KeyboardShortcuts.onKeyUp(for: .startRecording) { [weak self] in
             self?.toggleRecording()
+        }
+        
+        // Set up placeholder text shortcut handler
+        KeyboardShortcuts.onKeyUp(for: .insertPlaceholder) { [weak self] in
+            self?.insertPlaceholderText()
         }
         
         // Set up audio engine
@@ -302,6 +312,58 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         notification.soundName = NSUserNotificationDefaultSoundName
         NSUserNotificationCenter.default.deliver(notification)
     }
+    
+    func insertPlaceholderText() {
+        let placeholderText = "Lorem ipsum dolor sit amet, consectetur adipiscing elit."
+        
+        // Save current clipboard contents
+        let pasteboard = NSPasteboard.general
+        let savedTypes = pasteboard.types ?? []
+        var savedItems: [NSPasteboard.PasteboardType: Data] = [:]
+        
+        // Save all data from the clipboard
+        for type in savedTypes {
+            if let data = pasteboard.data(forType: type) {
+                savedItems[type] = data
+            }
+        }
+        
+        print("📋 Saved \(savedItems.count) clipboard types")
+        
+        // Clear clipboard and set our placeholder text
+        pasteboard.clearContents()
+        pasteboard.setString(placeholderText, forType: .string)
+        
+        // Simulate Cmd+V to paste
+        let source = CGEventSource(stateID: .hidSystemState)
+        
+        // Key down for Cmd+V
+        if let keyDown = CGEvent(keyboardEventSource: source, virtualKey: 0x09, keyDown: true) { // 0x09 is 'V' key
+            keyDown.flags = .maskCommand
+            keyDown.post(tap: .cghidEventTap)
+        }
+        
+        // Key up for V (no command flag on key up!)
+        if let keyUp = CGEvent(keyboardEventSource: source, virtualKey: 0x09, keyDown: false) {
+            // Don't set command flag on key up - just release the V key
+            keyUp.post(tap: .cghidEventTap)
+        }
+        
+        print("✅ Pasted placeholder text")
+        
+        // Restore original clipboard contents after a brief delay
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            pasteboard.clearContents()
+            
+            // Restore all saved types
+            for (type, data) in savedItems {
+                pasteboard.setData(data, forType: type)
+            }
+            
+            print("♻️ Restored \(savedItems.count) clipboard types")
+        }
+    }
+    
 }
 
 // Create and run the app

@@ -30,6 +30,9 @@ let package = Package(
         .executable(
             name: "TestTranscription",
             targets: ["TestTranscription"]),
+        .executable(
+            name: "TestLiveTranscription",
+            targets: ["TestLiveTranscription"]),
         .library(
             name: "SharedModels",
             targets: ["SharedModels"])
@@ -74,6 +77,10 @@ let package = Package(
         .executableTarget(
             name: "TestTranscription",
             dependencies: ["WhisperKit", "SharedModels"],
-            path: "TestTranscriptionSources")
+            path: "TestTranscriptionSources"),
+        .executableTarget(
+            name: "TestLiveTranscription",
+            dependencies: ["WhisperKit", "SharedModels"],
+            path: "TestLiveTranscriptionSources")
     ]
 )

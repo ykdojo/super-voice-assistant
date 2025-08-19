@@ -13,6 +13,7 @@ struct SettingsView: View {
     
     let models = ModelData.availableModels
     
+    
     var body: some View {
         VStack(spacing: 0) {
             // Header
@@ -208,6 +209,7 @@ class SettingsWindowController: NSWindowController {
         )
         window.title = "Settings"
         window.center()
+        window.isReleasedWhenClosed = false  // Prevent window from being released when closed
         
         let hostingController = NSHostingController(rootView: SettingsView())
         window.contentViewController = hostingController
@@ -216,7 +218,10 @@ class SettingsWindowController: NSWindowController {
     }
     
     func showWindow() {
-        window?.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
+        // Ensure window operations happen on main thread with proper timing
+        DispatchQueue.main.async { [weak self] in
+            self?.window?.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+        }
     }
 }

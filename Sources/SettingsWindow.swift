@@ -46,10 +46,7 @@ struct SettingsView: View {
                             onSelect: {
                                 if modelState.downloadedModels.contains(model.name) {
                                     modelState.selectedModel = model.name
-                                    // Load the model when selected
-                                    Task {
-                                        _ = await modelState.loadModel(model.name)
-                                    }
+                                    // Model will be loaded by the observer in main.swift
                                 }
                             },
                             onDownload: {

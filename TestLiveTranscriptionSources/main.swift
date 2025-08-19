@@ -58,31 +58,30 @@ class LiveTranscriptionTest {
             return
         }
         
-        // Use the input node's format for the tap
-        let inputFormat = inputNode.outputFormat(forBus: 0)
+        // Use the input node's format for the tap (consistent with main app)
+        let recordingFormat = inputNode.outputFormat(forBus: 0)
         
         audioBuffer.removeAll()
         
-        inputNode.installTap(onBus: 0, bufferSize: 4096, format: inputFormat) { [weak self] buffer, _ in
+        inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { [weak self] buffer, _ in
             guard let self = self else { return }
             
-            // Convert to 16kHz mono if needed
-            let channelCount = Int(buffer.format.channelCount)
+            let channelData = buffer.floatChannelData?[0]
             let frameLength = Int(buffer.frameLength)
             let inputSampleRate = buffer.format.sampleRate
             
-            // Get the first channel (mono)
-            guard let channelData = buffer.floatChannelData?[0] else { return }
-            
-            let samples = Array(UnsafeBufferPointer(start: channelData, count: frameLength))
-            
-            // Resample if needed (simple decimation for now)
-            if inputSampleRate != self.sampleRate {
-                let ratio = Int(inputSampleRate / self.sampleRate)
-                let resampledSamples = stride(from: 0, to: samples.count, by: ratio).map { samples[$0] }
-                self.audioBuffer.append(contentsOf: resampledSamples)
-            } else {
-                self.audioBuffer.append(contentsOf: samples)
+            if let channelData = channelData {
+                // Collect raw samples first (same as main app)
+                let samples = Array(UnsafeBufferPointer(start: channelData, count: frameLength))
+                
+                // Resample to 16kHz if needed for WhisperKit
+                if inputSampleRate != self.sampleRate {
+                    let ratio = Int(inputSampleRate / self.sampleRate)
+                    let resampledSamples = stride(from: 0, to: samples.count, by: ratio).map { samples[$0] }
+                    self.audioBuffer.append(contentsOf: resampledSamples)
+                } else {
+                    self.audioBuffer.append(contentsOf: samples)
+                }
             }
         }
         

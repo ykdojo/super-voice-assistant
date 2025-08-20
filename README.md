@@ -79,7 +79,7 @@ swift run TestLiveTranscription
 
 - **Language**: Swift
 - **UI Framework**: AppKit (Cocoa)
-- **Speech Recognition**: [WhisperKit](https://github.com/argmaxinc/WhisperKit) (integration in progress)
+- **Speech Recognition**: [WhisperKit](https://github.com/argmaxinc/WhisperKit)
 - **Global Hotkeys**: [KeyboardShortcuts](https://github.com/sindresorhus/KeyboardShortcuts)
 
 ## Project Structure

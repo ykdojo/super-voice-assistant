@@ -2,8 +2,7 @@
 
 ## Project Guidelines
 
-- Always read PROGRESS.md at the start of each session to understand current development status
-- Follow the roadmap and tech choices outlined in PROGRESS.md and README.md
+- Follow the roadmap and tech choices outlined in README.md
 
 ## Background Process Management
 

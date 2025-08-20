@@ -4,6 +4,7 @@ class TranscriptionHistoryWindow: NSWindow, NSTableViewDelegate, NSTableViewData
     private let tableView: NSTableView
     private let scrollView: NSScrollView
     private let clearButton: NSButton
+    private let refreshButton: NSButton
     private let closeButton: NSButton
     private let titleLabel: NSTextField
     private var entries: [TranscriptionEntry] = []
@@ -15,6 +16,7 @@ class TranscriptionHistoryWindow: NSWindow, NSTableViewDelegate, NSTableViewData
         self.tableView = NSTableView()
         self.scrollView = NSScrollView()
         self.clearButton = NSButton(title: "Clear History", target: nil, action: #selector(clearHistory))
+        self.refreshButton = NSButton(title: "Refresh", target: nil, action: #selector(refreshHistory))
         self.closeButton = NSButton(title: "Close", target: nil, action: #selector(closeWindow))
         self.titleLabel = NSTextField(labelWithString: "Transcription History")
         
@@ -83,6 +85,11 @@ class TranscriptionHistoryWindow: NSWindow, NSTableViewDelegate, NSTableViewData
         clearButton.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(clearButton)
         
+        refreshButton.target = self
+        refreshButton.bezelStyle = .rounded
+        refreshButton.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(refreshButton)
+        
         closeButton.target = self
         closeButton.bezelStyle = .rounded
         closeButton.keyEquivalent = "\u{1b}"
@@ -101,12 +108,16 @@ class TranscriptionHistoryWindow: NSWindow, NSTableViewDelegate, NSTableViewData
             scrollView.bottomAnchor.constraint(equalTo: clearButton.topAnchor, constant: -20),
             
             clearButton.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -20),
-            clearButton.centerXAnchor.constraint(equalTo: contentView.centerXAnchor, constant: -75),
-            clearButton.widthAnchor.constraint(equalToConstant: 140),
+            clearButton.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
+            clearButton.widthAnchor.constraint(equalToConstant: 120),
+            
+            refreshButton.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -20),
+            refreshButton.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
+            refreshButton.widthAnchor.constraint(equalToConstant: 100),
             
             closeButton.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -20),
-            closeButton.centerXAnchor.constraint(equalTo: contentView.centerXAnchor, constant: 75),
-            closeButton.widthAnchor.constraint(equalToConstant: 140)
+            closeButton.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
+            closeButton.widthAnchor.constraint(equalToConstant: 100)
         ])
     }
     
@@ -154,6 +165,10 @@ class TranscriptionHistoryWindow: NSWindow, NSTableViewDelegate, NSTableViewData
     
     @objc private func closeWindow() {
         close()
+    }
+    
+    @objc private func refreshHistory() {
+        loadEntries()
     }
     
     @objc private func copyTranscription(_ sender: NSButton) {

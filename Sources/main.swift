@@ -15,7 +15,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var statusItem: NSStatusItem!
     var isRecording = false
     var settingsWindow: SettingsWindowController?
-    private var copyFallbackWindow: CopyFallbackWindow?
     private var historyWindow: TranscriptionHistoryWindow?
     
     private var audioEngine: AVAudioEngine!
@@ -472,9 +471,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         print("✅ Paste command sent")
         
-        // After a short delay, check if we should show fallback
-        // The delay allows the paste to complete or fail
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+        // After a short delay, check if paste might have failed
+        // and show history window for easy manual copying
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
             // Get the frontmost app to see where we tried to paste
             let frontmostApp = NSWorkspace.shared.frontmostApplication
             let appName = frontmostApp?.localizedName ?? "Unknown"
@@ -482,7 +481,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             
             print("📱 Attempted paste in: \(appName) (\(bundleId))")
             
-            // If we detect common scenarios where paste might fail, show fallback
+            // Apps where paste typically fails or doesn't make sense
             let problematicApps = [
                 "com.apple.finder",
                 "com.apple.dock", 
@@ -492,8 +491,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             // Check if the app is known to not accept pastes well
             // OR if the user is in an unusual context
             if problematicApps.contains(bundleId) {
-                print("⚠️ Detected potential paste failure - showing fallback window")
-                self?.showCopyFallbackWindow(text)
+                print("⚠️ Detected potential paste failure - showing history window")
+                self?.showHistoryForPasteFailure()
             }
             
             // Restore clipboard
@@ -505,13 +504,23 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
     
-    func showCopyFallbackWindow(_ text: String) {
-        // Close any existing fallback window
-        copyFallbackWindow?.close()
+    func showHistoryForPasteFailure() {
+        // When paste fails in certain apps, show the history window
+        // by simulating the Shift+Alt+A keyboard shortcut
+        let source = CGEventSource(stateID: .hidSystemState)
         
-        // Create and show new window
-        copyFallbackWindow = CopyFallbackWindow(text: text)
-        copyFallbackWindow?.show()
+        // Key code for 'A' is 0x00
+        if let keyDown = CGEvent(keyboardEventSource: source, virtualKey: 0x00, keyDown: true) {
+            keyDown.flags = [.maskShift, .maskAlternate]
+            keyDown.post(tap: .cghidEventTap)
+        }
+        
+        if let keyUp = CGEvent(keyboardEventSource: source, virtualKey: 0x00, keyDown: false) {
+            keyUp.flags = [.maskShift, .maskAlternate]
+            keyUp.post(tap: .cghidEventTap)
+        }
+        
+        print("📚 Showing history window for paste failure recovery")
     }
     
 }

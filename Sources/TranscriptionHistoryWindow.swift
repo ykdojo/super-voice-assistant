@@ -28,7 +28,7 @@ class TranscriptionHistoryWindow: NSWindow, NSTableViewDelegate, NSTableViewData
         self.title = "Transcription History"
         self.level = .floating
         self.isReleasedWhenClosed = false
-        self.hidesOnDeactivate = false
+        self.hidesOnDeactivate = true
         
         setupUI()
         loadEntries()
@@ -62,12 +62,12 @@ class TranscriptionHistoryWindow: NSWindow, NSTableViewDelegate, NSTableViewData
         // Create columns in order: Transcription, Actions, Time
         let textColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("text"))
         textColumn.title = "Transcription"
-        textColumn.width = 460
+        textColumn.width = 455
         tableView.addTableColumn(textColumn)
         
         let actionColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("action"))
         actionColumn.title = "Actions"
-        actionColumn.width = 120
+        actionColumn.width = 125
         tableView.addTableColumn(actionColumn)
         
         let dateColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("date"))
@@ -125,7 +125,11 @@ class TranscriptionHistoryWindow: NSWindow, NSTableViewDelegate, NSTableViewData
     
     func show() {
         center()
+        
+        // Ensure the app is active and window comes to front
+        NSApp.activate(ignoringOtherApps: true)
         makeKeyAndOrderFront(nil)
+        
         loadEntries() // Refresh when showing
         
         // Select first row if available
@@ -168,6 +172,25 @@ class TranscriptionHistoryWindow: NSWindow, NSTableViewDelegate, NSTableViewData
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             sender.title = "Copy"
             sender.isEnabled = true
+        }
+    }
+    
+    @objc private func copyAndClose(_ sender: NSButton) {
+        let row = sender.tag
+        guard row >= 0 && row < entries.count else { return }
+        
+        let text = entries[row].text
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(text, forType: .string)
+        
+        // Update button title temporarily to show feedback
+        sender.title = "Copied!"
+        sender.isEnabled = false
+        
+        // Close the window after a brief delay to show the feedback
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.27) {
+            self.close()
         }
     }
     
@@ -225,14 +248,20 @@ class TranscriptionHistoryWindow: NSWindow, NSTableViewDelegate, NSTableViewData
             let copyButton = NSButton(title: "Copy", target: self, action: #selector(copyTranscription(_:)))
             copyButton.bezelStyle = .inline
             copyButton.tag = row
-            copyButton.frame = CGRect(x: 5, y: 30, width: 50, height: 20)
+            copyButton.frame = CGRect(x: 5, y: 38, width: 50, height: 18)
             cellView.addSubview(copyButton)
             
             let deleteButton = NSButton(title: "Delete", target: self, action: #selector(deleteTranscription(_:)))
             deleteButton.bezelStyle = .inline
             deleteButton.tag = row
-            deleteButton.frame = CGRect(x: 60, y: 30, width: 55, height: 20)
+            deleteButton.frame = CGRect(x: 60, y: 38, width: 55, height: 18)
             cellView.addSubview(deleteButton)
+            
+            let copyCloseButton = NSButton(title: "Copy & Close", target: self, action: #selector(copyAndClose(_:)))
+            copyCloseButton.bezelStyle = .inline
+            copyCloseButton.tag = row
+            copyCloseButton.frame = CGRect(x: 5, y: 10, width: 110, height: 18)
+            cellView.addSubview(copyCloseButton)
         } else if tableColumn?.identifier.rawValue == "date" {
             let textField = NSTextField(labelWithString: formatDate(entry.timestamp))
             textField.font = .systemFont(ofSize: 11)

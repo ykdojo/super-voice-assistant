@@ -10,6 +10,7 @@ class ModelStateManager: ObservableObject {
     enum ModelLoadingState: Equatable {
         case notDownloaded
         case downloading(progress: Double)
+        case validating
         case downloaded
         case loading
         case loaded

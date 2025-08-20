@@ -203,16 +203,24 @@ class TranscriptionHistoryWindow: NSWindow, NSTableViewDelegate, NSTableViewData
         let cellView = NSView()
         
         if tableColumn?.identifier.rawValue == "text" {
-            let textField = NSTextField(labelWithString: entry.text)
+            let textField = NSTextField(wrappingLabelWithString: entry.text)
             textField.font = .systemFont(ofSize: 12)
             textField.isEditable = false
             textField.isSelectable = true
             textField.isBordered = false
             textField.backgroundColor = .clear
-            textField.lineBreakMode = .byTruncatingTail
+            textField.lineBreakMode = .byWordWrapping
             textField.maximumNumberOfLines = 2
-            textField.frame = CGRect(x: 5, y: 5, width: 450, height: 50)
+            textField.translatesAutoresizingMaskIntoConstraints = false
             cellView.addSubview(textField)
+            
+            // Use constraints to properly contain the text field
+            NSLayoutConstraint.activate([
+                textField.leadingAnchor.constraint(equalTo: cellView.leadingAnchor, constant: 5),
+                textField.trailingAnchor.constraint(equalTo: cellView.trailingAnchor, constant: -5),
+                textField.topAnchor.constraint(equalTo: cellView.topAnchor, constant: 5),
+                textField.bottomAnchor.constraint(equalTo: cellView.bottomAnchor, constant: -5)
+            ])
         } else if tableColumn?.identifier.rawValue == "action" {
             let copyButton = NSButton(title: "Copy", target: self, action: #selector(copyTranscription(_:)))
             copyButton.bezelStyle = .inline

@@ -166,15 +166,24 @@ struct ModelCard: View {
                             .foregroundColor(.secondary)
                     }
                 }
-            } else if isDownloading {
+            } else if case .downloading(let progress) = loadingState {
                 HStack(spacing: 8) {
-                    ProgressView(value: downloadProgress)
+                    ProgressView(value: progress)
                         .progressViewStyle(.linear)
                         .frame(width: 80)
-                    Text(String(format: "%.1f%%", downloadProgress * 100))
+                    Text(String(format: "%.1f%%", progress * 100))
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .frame(width: 45)
+                }
+            } else if loadingState == .validating {
+                HStack(spacing: 8) {
+                    ProgressView()
+                        .scaleEffect(0.5)
+                        .frame(width: 16, height: 16)
+                    Text("Validating...")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
             } else {
                 VStack(alignment: .trailing, spacing: 4) {

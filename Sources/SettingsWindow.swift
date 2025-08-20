@@ -156,6 +156,7 @@ struct SettingsView: View {
         print("Starting download of \(model.displayName)...")
         downloadingModels.insert(modelName)
         downloadProgress[modelName] = 0.0
+        modelState.setLoadingState(for: modelName, state: .downloading(progress: 0.0))
         
         Task {
             do {
@@ -166,10 +167,12 @@ struct SettingsView: View {
                         Task { @MainActor in
                             // Update progress based on actual download progress
                             downloadProgress[modelName] = progress.fractionCompleted
+                            modelState.setLoadingState(for: modelName, state: .downloading(progress: progress.fractionCompleted))
                             
-                            // If download is complete
+                            // If download is complete, show validating state
                             if progress.isFinished {
                                 downloadProgress[modelName] = 1.0
+                                modelState.setLoadingState(for: modelName, state: .validating)
                             }
                         }
                     }
@@ -177,10 +180,9 @@ struct SettingsView: View {
                 
                 // When download finishes, mark it as complete in our manager
                 await MainActor.run {
-                    downloadProgress[modelName] = 1.0
                     modelState.markModelAsDownloaded(modelName)
                     
-                    // Clean up after a short delay to show 100%
+                    // Clean up after a short delay to show completion
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                         downloadingModels.remove(modelName)
                         downloadProgress.removeValue(forKey: modelName)
@@ -202,6 +204,7 @@ struct SettingsView: View {
                     downloadErrors[modelName] = error.localizedDescription
                     downloadingModels.remove(modelName)
                     downloadProgress.removeValue(forKey: modelName)
+                    modelState.setLoadingState(for: modelName, state: .notDownloaded)
                 }
             }
         }

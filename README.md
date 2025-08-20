@@ -4,7 +4,7 @@ A native macOS dictation app with global hotkey support for instant voice-to-tex
 
 ## Current Status
 
-A fully functional macOS menu bar app that transcribes voice to text using WhisperKit. Press Shift+Alt+Z to record, and the transcribed text automatically pastes at your cursor position. Press Shift+Alt+A to view transcription history.
+A macOS menu bar app that transcribes voice to text using WhisperKit. Press Shift+Alt+Z to record, and the transcribed text automatically pastes at your cursor position. Press Shift+Alt+A to view transcription history.
 
 **[See TODO.md](TODO.md)** for planned features and ongoing tasks.
 

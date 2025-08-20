@@ -118,7 +118,7 @@ class TranscriptionHistoryWindow: NSWindow, NSTableViewDelegate, NSTableViewData
             titleLabel.stringValue = "No transcription history"
             clearButton.isEnabled = false
         } else {
-            titleLabel.stringValue = "Transcription History (\(entries.count) entries)"
+            titleLabel.stringValue = "Transcription History (\(entries.count) of max 100 entries)"
             clearButton.isEnabled = true
         }
     }

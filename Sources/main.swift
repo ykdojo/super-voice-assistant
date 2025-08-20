@@ -16,6 +16,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var isRecording = false
     var settingsWindow: SettingsWindowController?
     private var historyWindow: TranscriptionHistoryWindow?
+    private var statsWindow: StatsWindow?
     
     private var audioEngine: AVAudioEngine!
     private var inputNode: AVAudioInputNode!
@@ -43,6 +44,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Settings...", action: #selector(openSettings), keyEquivalent: ","))
         menu.addItem(NSMenuItem(title: "View History...", action: #selector(showTranscriptionHistory), keyEquivalent: "h"))
+        menu.addItem(NSMenuItem(title: "Statistics...", action: #selector(showStats), keyEquivalent: "s"))
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         statusItem.menu = menu
@@ -128,6 +130,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             historyWindow = TranscriptionHistoryWindow()
         }
         historyWindow?.show()
+    }
+    
+    @objc func showStats() {
+        if statsWindow == nil {
+            statsWindow = StatsWindow()
+        }
+        statsWindow?.show()
     }
     
     func toggleRecording() {

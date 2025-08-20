@@ -65,6 +65,10 @@ class TranscriptionHistory {
         }
         
         saveHistory()
+        
+        // Update stats
+        TranscriptionStats.shared.incrementTranscriptionCount()
+        
         print("Added transcription to history: \(text)")
     }
     

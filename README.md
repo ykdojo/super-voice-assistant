@@ -12,7 +12,31 @@ A macOS menu bar app that transcribes voice to text using WhisperKit. Press Shif
 
 - macOS 14.0 or later
 - Xcode 15+ or Xcode Command Line Tools (for Swift 5.9+)
-- Microphone permissions
+
+## System Permissions Setup
+
+This app requires specific system permissions to function properly:
+
+### 1. Microphone Access
+The app will automatically request microphone permission on first launch. If denied, grant it manually:
+- Go to **System Settings > Privacy & Security > Microphone**
+- Enable access for **Super Voice Assistant**
+
+### 2. Accessibility Access (Required for Global Hotkeys & Auto-Paste)
+You must manually grant accessibility permissions for the app to:
+- Monitor global keyboard shortcuts (Shift+Alt+Z, Shift+Alt+A, Escape)
+- Automatically paste transcribed text at cursor position
+
+**To enable:**
+1. Go to **System Settings > Privacy & Security > Accessibility**
+2. Click the lock icon to make changes (enter your password)
+3. Click the **+** button to add an application
+4. Navigate to the app location:
+   - If running via `swift run`: Add **Terminal** or your terminal app (iTerm2, etc.)
+   - If running the built binary directly: Add the **SuperVoiceAssistant** executable
+5. Ensure the checkbox next to the app is checked
+
+**Important:** Without accessibility access, the app cannot detect global hotkeys or paste text automatically.
 
 ## Installation & Running
 

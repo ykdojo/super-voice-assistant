@@ -9,6 +9,16 @@
 
 ## TODO Tasks
 
+### System Permissions
+- [ ] Add code to check accessibility permissions at startup
+  - [ ] Check if app has accessibility access for global hotkeys
+  - [ ] Check if app has accessibility access for automated paste
+- [ ] Show user-friendly alerts when permissions are missing
+  - [ ] Explain why each permission is needed
+  - [ ] Show which features won't work without permissions
+- [ ] Add option to open System Settings directly from permission alerts
+  - [ ] Deep link to Privacy & Security > Accessibility settings
+
 ### Code Refactoring
 - [ ] **Split main.swift** (531 lines) to keep files under 300 lines
 

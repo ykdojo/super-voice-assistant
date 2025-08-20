@@ -17,7 +17,7 @@ var models = [
 models.append(("openai_whisper-tiny", "Tiny (Test Only - 39MB)"))
 #endif
 
-class WhisperModelDownloader {
+class TestDownloadHelper {
     static let modelManager = WhisperModelManager.shared
     
     static func downloadModel(modelName: String, displayName: String, forceRedownload: Bool = false) async throws -> URL {
@@ -154,7 +154,7 @@ Task {
         if let index = modelIndex, index >= 1 && index <= models.count {
             // Download specific model
             let (modelName, displayName) = models[index - 1]
-            let modelPath = try await WhisperModelDownloader.downloadModel(
+            let modelPath = try await TestDownloadHelper.downloadModel(
                 modelName: modelName, 
                 displayName: displayName,
                 forceRedownload: forceRedownload
@@ -164,7 +164,7 @@ Task {
             // Download all models when --all flag is used
             print("\n🔄 Downloading all models sequentially...")
             for (modelName, displayName) in models {
-                _ = try await WhisperModelDownloader.downloadModel(
+                _ = try await TestDownloadHelper.downloadModel(
                     modelName: modelName,
                     displayName: displayName,
                     forceRedownload: forceRedownload

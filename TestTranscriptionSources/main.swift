@@ -85,11 +85,21 @@ struct TranscriptionTester {
             print("  ⚠️  Model not marked as complete")
             print("  🔧 Attempting validation...")
             
-            if modelManager.validateModelIntegrity(modelName) {
+            // Try to load the model to validate it's complete
+            let modelPath = modelManager.getModelPath(for: modelName)
+            do {
+                let _ = try await WhisperKit(
+                    modelFolder: modelPath.path,
+                    verbose: false,
+                    logLevel: .error,
+                    load: true
+                )
+                // If loading succeeds, mark it as complete
                 modelManager.markModelAsDownloaded(modelName)
                 print("  ✅ Model validated and marked as complete")
-            } else {
+            } catch {
                 print("  ❌ Model validation failed. Please re-download.")
+                print("     Error: \(error.localizedDescription)")
                 return
             }
         } else {

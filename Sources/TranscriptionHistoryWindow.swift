@@ -59,16 +59,16 @@ class TranscriptionHistoryWindow: NSWindow, NSTableViewDelegate, NSTableViewData
         tableView.allowsTypeSelect = true
         tableView.usesAlternatingRowBackgroundColors = true
         
-        // Create columns in order: Action, Transcription, Time
-        let actionColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("action"))
-        actionColumn.title = "Actions"
-        actionColumn.width = 120
-        tableView.addTableColumn(actionColumn)
-        
+        // Create columns in order: Transcription, Actions, Time
         let textColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("text"))
         textColumn.title = "Transcription"
         textColumn.width = 460
         tableView.addTableColumn(textColumn)
+        
+        let actionColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("action"))
+        actionColumn.title = "Actions"
+        actionColumn.width = 120
+        tableView.addTableColumn(actionColumn)
         
         let dateColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("date"))
         dateColumn.title = "Time"

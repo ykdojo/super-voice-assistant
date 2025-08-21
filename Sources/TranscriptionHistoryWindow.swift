@@ -56,7 +56,7 @@ class TranscriptionHistoryWindow: NSWindow, NSTableViewDelegate, NSTableViewData
         // Configure table view
         tableView.delegate = self
         tableView.dataSource = self
-        tableView.rowHeight = 60
+        tableView.rowHeight = 80
         tableView.gridStyleMask = .solidHorizontalGridLineMask
         tableView.allowsTypeSelect = true
         tableView.usesAlternatingRowBackgroundColors = true
@@ -64,7 +64,7 @@ class TranscriptionHistoryWindow: NSWindow, NSTableViewDelegate, NSTableViewData
         // Create columns in order: Transcription, Actions, Time
         let textColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("text"))
         textColumn.title = "Transcription"
-        textColumn.width = 455
+        textColumn.width = 280
         tableView.addTableColumn(textColumn)
         
         let actionColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("action"))
@@ -74,7 +74,7 @@ class TranscriptionHistoryWindow: NSWindow, NSTableViewDelegate, NSTableViewData
         
         let dateColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("date"))
         dateColumn.title = "Time"
-        dateColumn.width = 180
+        dateColumn.width = 200
         tableView.addTableColumn(dateColumn)
         
         scrollView.documentView = tableView
@@ -167,7 +167,7 @@ class TranscriptionHistoryWindow: NSWindow, NSTableViewDelegate, NSTableViewData
         close()
     }
     
-    @objc private func refreshHistory() {
+    @objc func refreshHistory() {
         loadEntries()
     }
     
@@ -263,19 +263,19 @@ class TranscriptionHistoryWindow: NSWindow, NSTableViewDelegate, NSTableViewData
             let copyButton = NSButton(title: "Copy", target: self, action: #selector(copyTranscription(_:)))
             copyButton.bezelStyle = .inline
             copyButton.tag = row
-            copyButton.frame = CGRect(x: 5, y: 38, width: 50, height: 18)
+            copyButton.frame = CGRect(x: 5, y: 55, width: 50, height: 18)
             cellView.addSubview(copyButton)
             
             let deleteButton = NSButton(title: "Delete", target: self, action: #selector(deleteTranscription(_:)))
             deleteButton.bezelStyle = .inline
             deleteButton.tag = row
-            deleteButton.frame = CGRect(x: 60, y: 38, width: 55, height: 18)
+            deleteButton.frame = CGRect(x: 60, y: 55, width: 55, height: 18)
             cellView.addSubview(deleteButton)
             
             let copyCloseButton = NSButton(title: "Copy & Close", target: self, action: #selector(copyAndClose(_:)))
             copyCloseButton.bezelStyle = .inline
             copyCloseButton.tag = row
-            copyCloseButton.frame = CGRect(x: 5, y: 10, width: 110, height: 18)
+            copyCloseButton.frame = CGRect(x: 5, y: 30, width: 110, height: 18)
             cellView.addSubview(copyCloseButton)
         } else if tableColumn?.identifier.rawValue == "date" {
             let textField = NSTextField(labelWithString: formatDate(entry.timestamp))
@@ -286,8 +286,15 @@ class TranscriptionHistoryWindow: NSWindow, NSTableViewDelegate, NSTableViewData
             textField.backgroundColor = .clear
             textField.lineBreakMode = .byWordWrapping
             textField.maximumNumberOfLines = 2
-            textField.frame = CGRect(x: 5, y: 5, width: 170, height: 50)
+            textField.translatesAutoresizingMaskIntoConstraints = false
             cellView.addSubview(textField)
+            
+            // Top-align the date text
+            NSLayoutConstraint.activate([
+                textField.leadingAnchor.constraint(equalTo: cellView.leadingAnchor, constant: 5),
+                textField.trailingAnchor.constraint(equalTo: cellView.trailingAnchor, constant: -5),
+                textField.topAnchor.constraint(equalTo: cellView.topAnchor, constant: 5)
+            ])
         }
         
         return cellView

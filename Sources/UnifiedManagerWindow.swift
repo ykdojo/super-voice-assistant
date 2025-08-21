@@ -77,6 +77,11 @@ class UnifiedManagerWindow: NSWindowController {
         // If a specific tab is requested, switch to it
         if let tab = tab {
             tabViewController.selectedTabViewItemIndex = tab.rawValue
+            
+            // If showing history tab, refresh it (even if already visible)
+            if tab == .history {
+                historyWindow?.refreshHistory()
+            }
         }
         
         window?.center()

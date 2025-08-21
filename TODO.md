@@ -20,7 +20,10 @@
   - [ ] Deep link to Privacy & Security > Accessibility settings
 
 ### Code Refactoring
-- [ ] **Split main.swift** (531 lines) to keep files under 300 lines
+- [x] **Split main.swift** (549 lines) into smaller files
+  - [x] Created AudioTranscriptionManager.swift (254 lines) for audio recording and transcription
+  - [x] Reduced main.swift to 323 lines (41% reduction)
+  - [x] Implemented delegate pattern for clean separation of concerns
 
 ### Model Management
 - [ ] Improve model download/loading state management

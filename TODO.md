@@ -26,10 +26,13 @@
   - [x] Implemented delegate pattern for clean separation of concerns
 
 ### Model Management
-- [ ] Improve model download/loading state management
+- [ ] Overhaul model state management architecture
+  - [x] Basic download/loading functionality working
+  - [x] Model selection and switching
   - [ ] Better handling of incomplete/partial downloads
   - [ ] Add ability to clean up corrupted/incomplete model files
   - [ ] Better error recovery for failed downloads
+  - [ ] Unified state management for downloading, verifying, and loading
 
 ### Model Memory Requirements
 - [ ] Add information about how much memory each WhisperKit model takes

@@ -35,3 +35,5 @@ Swift-based voice assistant project with speech recognition and synthesis capabi
 ## Development Notes
 - The project uses Swift Package Manager for dependency management
 - Permissions are configured in `.claude/settings.local.json`
+
+

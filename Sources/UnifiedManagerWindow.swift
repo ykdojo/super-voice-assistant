@@ -9,8 +9,8 @@ enum ManagerTab: Int {
 
 class UnifiedManagerWindow: NSWindowController {
     private var tabViewController: NSTabViewController!
-    private var historyWindow: TranscriptionHistoryWindow?
-    private var statsWindow: StatsWindow?
+    private var historyViewController: TranscriptionHistoryViewController?
+    private var statsViewController: StatsViewController?
     private var settingsController: SettingsWindowController?
     
     override init(window: NSWindow?) {
@@ -48,24 +48,16 @@ class UnifiedManagerWindow: NSWindowController {
         settingsTab.image = NSImage(systemSymbolName: "gear", accessibilityDescription: "Settings")
         tabViewController.addTabViewItem(settingsTab)
         
-        // History Tab - Extract content from TranscriptionHistoryWindow
-        if historyWindow == nil {
-            historyWindow = TranscriptionHistoryWindow()
-        }
-        let historyViewController = NSViewController()
-        historyViewController.view = historyWindow!.contentView!
-        let historyTab = NSTabViewItem(viewController: historyViewController)
+        // History Tab - Use the new TranscriptionHistoryViewController
+        historyViewController = TranscriptionHistoryViewController()
+        let historyTab = NSTabViewItem(viewController: historyViewController!)
         historyTab.label = "History"
         historyTab.image = NSImage(systemSymbolName: "clock", accessibilityDescription: "History")
         tabViewController.addTabViewItem(historyTab)
         
-        // Statistics Tab - Extract content from StatsWindow
-        if statsWindow == nil {
-            statsWindow = StatsWindow()
-        }
-        let statsViewController = NSViewController()
-        statsViewController.view = statsWindow!.contentView!
-        let statsTab = NSTabViewItem(viewController: statsViewController)
+        // Statistics Tab - Use the new StatsViewController
+        statsViewController = StatsViewController()
+        let statsTab = NSTabViewItem(viewController: statsViewController!)
         statsTab.label = "Statistics"
         statsTab.image = NSImage(systemSymbolName: "chart.bar", accessibilityDescription: "Statistics")
         tabViewController.addTabViewItem(statsTab)
@@ -80,7 +72,7 @@ class UnifiedManagerWindow: NSWindowController {
             
             // If showing history tab, refresh it (even if already visible)
             if tab == .history {
-                historyWindow?.refreshHistory()
+                historyViewController?.refreshHistory()
             }
         }
         

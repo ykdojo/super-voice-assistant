@@ -16,6 +16,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
     var settingsWindow: SettingsWindowController?
     private var historyWindow: TranscriptionHistoryWindow?
     private var statsWindow: StatsWindow?
+    private var unifiedWindow: UnifiedManagerWindow?
     
     private var displayTimer: Timer?
     private var modelCancellable: AnyCancellable?
@@ -86,24 +87,24 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
 
     
     @objc func openSettings() {
-        if settingsWindow == nil {
-            settingsWindow = SettingsWindowController()
+        if unifiedWindow == nil {
+            unifiedWindow = UnifiedManagerWindow()
         }
-        settingsWindow?.showWindow()
+        unifiedWindow?.showWindow(tab: .settings)
     }
     
     @objc func showTranscriptionHistory() {
-        if historyWindow == nil {
-            historyWindow = TranscriptionHistoryWindow()
+        if unifiedWindow == nil {
+            unifiedWindow = UnifiedManagerWindow()
         }
-        historyWindow?.show()
+        unifiedWindow?.showWindow(tab: .history)
     }
     
     @objc func showStats() {
-        if statsWindow == nil {
-            statsWindow = StatsWindow()
+        if unifiedWindow == nil {
+            unifiedWindow = UnifiedManagerWindow()
         }
-        statsWindow?.show()
+        unifiedWindow?.showWindow(tab: .statistics)
     }
     
 

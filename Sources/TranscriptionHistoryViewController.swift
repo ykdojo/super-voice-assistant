@@ -234,23 +234,37 @@ class TranscriptionHistoryViewController: NSViewController, NSTableViewDelegate,
         let cellView = NSView()
         
         if tableColumn?.identifier.rawValue == "text" {
-            let textField = NSTextField(wrappingLabelWithString: entry.text)
-            textField.font = .systemFont(ofSize: 12)
-            textField.isEditable = false
-            textField.isSelectable = true
-            textField.isBordered = false
-            textField.backgroundColor = .clear
-            textField.lineBreakMode = .byWordWrapping
-            textField.maximumNumberOfLines = 2
-            textField.translatesAutoresizingMaskIntoConstraints = false
-            cellView.addSubview(textField)
+            // Create scrollable text view (not selectable)
+            let scrollView = NSScrollView()
+            scrollView.hasVerticalScroller = true
+            scrollView.hasHorizontalScroller = false
+            scrollView.autohidesScrollers = true
+            scrollView.borderType = .noBorder
+            scrollView.translatesAutoresizingMaskIntoConstraints = false
             
-            // Use constraints to properly contain the text field
+            let textView = NSTextView()
+            textView.string = entry.text
+            textView.font = .systemFont(ofSize: 12)
+            textView.textColor = .labelColor
+            textView.isEditable = false
+            textView.isSelectable = false  // Not selectable
+            textView.backgroundColor = .clear
+            textView.drawsBackground = false
+            textView.isVerticallyResizable = true
+            textView.isHorizontallyResizable = false
+            textView.autoresizingMask = [.width]
+            textView.textContainer?.widthTracksTextView = true
+            textView.textContainer?.containerSize = CGSize(width: 0, height: CGFloat.greatestFiniteMagnitude)
+            
+            scrollView.documentView = textView
+            cellView.addSubview(scrollView)
+            
+            // Use constraints to properly contain the scroll view
             NSLayoutConstraint.activate([
-                textField.leadingAnchor.constraint(equalTo: cellView.leadingAnchor, constant: 5),
-                textField.trailingAnchor.constraint(equalTo: cellView.trailingAnchor, constant: -5),
-                textField.topAnchor.constraint(equalTo: cellView.topAnchor, constant: 5),
-                textField.bottomAnchor.constraint(equalTo: cellView.bottomAnchor, constant: -5)
+                scrollView.leadingAnchor.constraint(equalTo: cellView.leadingAnchor, constant: 5),
+                scrollView.trailingAnchor.constraint(equalTo: cellView.trailingAnchor, constant: -5),
+                scrollView.topAnchor.constraint(equalTo: cellView.topAnchor, constant: 5),
+                scrollView.bottomAnchor.constraint(equalTo: cellView.bottomAnchor, constant: -5)
             ])
         } else if tableColumn?.identifier.rawValue == "action" {
             let copyButton = NSButton(title: "Copy", target: self, action: #selector(copyTranscription(_:)))

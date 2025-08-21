@@ -14,8 +14,6 @@ extension KeyboardShortcuts.Name {
 class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDelegate {
     var statusItem: NSStatusItem!
     var settingsWindow: SettingsWindowController?
-    private var historyWindow: TranscriptionHistoryWindow?
-    private var statsWindow: StatsWindow?
     private var unifiedWindow: UnifiedManagerWindow?
     
     private var displayTimer: Timer?

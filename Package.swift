@@ -33,6 +33,9 @@ let package = Package(
         .executable(
             name: "TestLiveTranscription",
             targets: ["TestLiveTranscription"]),
+        .executable(
+            name: "TestTokenizer",
+            targets: ["TestTokenizer"]),
         .library(
             name: "SharedModels",
             targets: ["SharedModels"])
@@ -81,6 +84,10 @@ let package = Package(
         .executableTarget(
             name: "TestLiveTranscription",
             dependencies: ["WhisperKit", "SharedModels"],
-            path: "TestLiveTranscriptionSources")
+            path: "TestLiveTranscriptionSources"),
+        .executableTarget(
+            name: "TestTokenizer",
+            dependencies: ["WhisperKit"],
+            path: "TestTokenizerSources")
     ]
 )

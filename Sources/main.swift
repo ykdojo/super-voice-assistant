@@ -305,6 +305,20 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
         NSUserNotificationCenter.default.deliver(notification)
     }
     
+    func recordingWasSkippedDueToSilence() {
+        // Reset the status bar icon
+        if let button = statusItem.button {
+            button.image = NSImage(systemSymbolName: "waveform", accessibilityDescription: "Voice Assistant")
+            button.title = ""
+        }
+        
+        // Optionally show a subtle notification
+        let notification = NSUserNotification()
+        notification.title = "Recording Skipped"
+        notification.informativeText = "Audio was too quiet to transcribe"
+        NSUserNotificationCenter.default.deliver(notification)
+    }
+    
 }
 
 // Create and run the app

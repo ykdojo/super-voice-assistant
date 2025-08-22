@@ -10,6 +10,7 @@ protocol AudioTranscriptionManagerDelegate: AnyObject {
     func transcriptionDidComplete(text: String)
     func transcriptionDidFail(error: String)
     func recordingWasCancelled()
+    func recordingWasSkippedDueToSilence()
 }
 
 class AudioTranscriptionManager {
@@ -185,6 +186,8 @@ class AudioTranscriptionManager {
         
         if db < silenceThreshold {
             print("Audio too quiet (RMS: \(rms), dB: \(db)). Skipping transcription.")
+            // Reset the status bar icon when skipping quiet audio
+            delegate?.recordingWasSkippedDueToSilence()
             return
         }
         

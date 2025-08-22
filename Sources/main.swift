@@ -220,7 +220,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
         
         // After a short delay, check if paste might have failed
         // and show history window for easy manual copying
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
             // Get the frontmost app to see where we tried to paste
             let frontmostApp = NSWorkspace.shared.frontmostApplication
             let appName = frontmostApp?.localizedName ?? "Unknown"

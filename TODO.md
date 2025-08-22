@@ -4,8 +4,7 @@
 
 - Voice recording with Shift+Alt+Z hotkey
 - WhisperKit transcription with auto-paste
-- Transcription history window (Shift+Alt+A)
-- Copy fallback window when paste fails
+- Transcription history window (Shift+Alt+A) - also shown automatically when paste fails in certain apps
 
 ## TODO Tasks
 
@@ -19,16 +18,8 @@
 - [ ] Add option to open System Settings directly from permission alerts
   - [ ] Deep link to Privacy & Security > Accessibility settings
 
-### Code Refactoring
-- [x] **Split main.swift** (549 lines) into smaller files
-  - [x] Created AudioTranscriptionManager.swift (254 lines) for audio recording and transcription
-  - [x] Reduced main.swift to 323 lines (41% reduction)
-  - [x] Implemented delegate pattern for clean separation of concerns
-
 ### Model Management
 - [ ] Overhaul model state management architecture
-  - [x] Basic download/loading functionality working
-  - [x] Model selection and switching
   - [ ] Better handling of incomplete/partial downloads
   - [ ] Add ability to clean up corrupted/incomplete model files
   - [ ] Better error recovery for failed downloads

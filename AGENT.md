@@ -30,7 +30,6 @@ Swift-based voice assistant project with speech recognition and synthesis capabi
 ## Project Structure
 - `/Sources/` - Main source code directory
 - `Package.swift` - Swift package manifest
-- `PROGRESS.md` - Development progress tracking
 
 ## Development Notes
 - The project uses Swift Package Manager for dependency management

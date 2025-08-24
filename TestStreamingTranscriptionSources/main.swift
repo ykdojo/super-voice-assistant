@@ -173,13 +173,8 @@ class StreamingTranscriptionTest {
                 segmentArray.append(currentUnconfirmedText)
             }
             arrayChanged = true
-        } else {
-            // No current valid unconfirmed text, remove it if it exists
-            if segmentArray.count > confirmedSegmentCount {
-                segmentArray.removeLast()
-                arrayChanged = true
-            }
         }
+        // Note: We never remove segments from the array - it should only grow
         
         // Print the entire array when it changes
         if arrayChanged {

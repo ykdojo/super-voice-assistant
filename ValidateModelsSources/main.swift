@@ -18,7 +18,7 @@ let models = [
 let modelManager = WhisperModelManager.shared
 
 func validateModel(modelName: String, displayName: String) async {
-    print("Checking \(displayName)...")
+    print("Checking \(displayName) (\(modelName))...")
     
     // First check if the directory exists
     if !modelManager.modelExistsOnDisk(modelName) {

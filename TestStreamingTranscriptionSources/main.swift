@@ -166,7 +166,7 @@ class StreamingTranscriptionTest {
         
         // CRITICAL: Never show shorter text than we've already shown
         // If the new fullText is shorter than what we last displayed, keep showing the last one
-        if fullText.count >= lastDisplayedText.count && !fullText.isEmpty {
+        if fullText.count >= lastDisplayedText.count && !fullText.isEmpty && fullText != lastDisplayedText {
             lastDisplayedText = fullText
             maxTextLengthSeen = max(maxTextLengthSeen, fullText.count)
             print("📝 \(fullText)")

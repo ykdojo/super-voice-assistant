@@ -39,6 +39,9 @@ let package = Package(
         .executable(
             name: "TestSubtleVocabulary",
             targets: ["TestSubtleVocabulary"]),
+        .executable(
+            name: "TestCleanPrefix",
+            targets: ["TestCleanPrefix"]),
         .library(
             name: "SharedModels",
             targets: ["SharedModels"])
@@ -95,6 +98,10 @@ let package = Package(
         .executableTarget(
             name: "TestSubtleVocabulary",
             dependencies: ["WhisperKit"],
-            path: "TestSubtleVocabularySources")
+            path: "TestSubtleVocabularySources"),
+        .executableTarget(
+            name: "TestCleanPrefix",
+            dependencies: ["WhisperKit"],
+            path: "TestCleanPrefixSources")
     ]
 )

@@ -40,6 +40,26 @@ Using audio file `claude.wav` with speech: "I want to put this in CLAUDE.md usin
 | `" Claude Code"` | "Claude Code: I want to put this in Claude.Emily using Claude code." | 🎯 Excellent |
 | `" CLAUDE.md Claude Code"` | "CLAUDE.md Claude Code: I want to put this in Claude.md using Claude Code." | 🎯 Excellent |
 
+### 🆕 Prefix Cleaning Solution
+**IMPORTANT**: `prefixTokens` includes the vocabulary prefix in the final output. For production use, post-process to remove the artificial prefix:
+
+```swift
+func cleanTranscript(_ transcript: String, prefix: String) -> String {
+    if transcript.hasPrefix(prefix + ":") {
+        return String(transcript.dropFirst(prefix.count + 1)).trimmingCharacters(in: .whitespaces)
+    } else if transcript.hasPrefix(prefix + ".") {
+        return String(transcript.dropFirst(prefix.count + 1)).trimmingCharacters(in: .whitespaces)
+    } else if transcript.hasPrefix(prefix) {
+        return String(transcript.dropFirst(prefix.count)).trimmingCharacters(in: .whitespaces)
+    }
+    return transcript
+}
+```
+
+**Results with cleaning**:
+- Raw: `"CLAUDE.md Claude Code: I want to put this in Claude.md using Claude Code."`
+- Cleaned: `"I want to put this in Claude.md using Claude Code."` ✅ Perfect!
+
 ### Integration Instructions
 For production implementation in AudioTranscriptionManager.swift:
 
@@ -62,8 +82,29 @@ func transcribe(audioURL: URL, customVocabulary: String? = nil) async -> String?
         decodingOptions.prefixTokens = prefixTokens
     }
     
-    // ... rest of transcription logic
+    // Perform transcription
+    let result = try await whisperKit.transcribe(audioPath: audioURL.path, decodeOptions: decodingOptions)
+    let rawTranscript = result.first?.text ?? ""
+    
+    // Clean the prefix if vocabulary was used
+    if let vocabulary = customVocabulary, !vocabulary.isEmpty {
+        return cleanTranscript(rawTranscript, prefix: vocabulary)
+    }
+    
+    return rawTranscript
 }
+
+private func cleanTranscript(_ transcript: String, prefix: String) -> String {
+    if transcript.hasPrefix(prefix + ":") {
+        return String(transcript.dropFirst(prefix.count + 1)).trimmingCharacters(in: .whitespaces)
+    } else if transcript.hasPrefix(prefix + ".") {
+        return String(transcript.dropFirst(prefix.count + 1)).trimmingCharacters(in: .whitespaces)
+    } else if transcript.hasPrefix(prefix) {
+        return String(transcript.dropFirst(prefix.count)).trimmingCharacters(in: .whitespaces)
+    }
+    return transcript
+}
+```
 ```
 
 ## Research Journey Summary
@@ -98,9 +139,14 @@ func transcribe(audioURL: URL, customVocabulary: String? = nil) async -> String?
 3. **User Presets**: Create common vocabulary presets (programming, writing, etc.)
 4. **Testing**: Validate with various audio inputs and vocabulary sets
 
-## Test File Location
-Working test implementation: `TestSubtleVocabularySources/main.swift`
-Run with: `swift run TestSubtleVocabulary`
+## Test File Locations
+Working test implementations:
+- `TestSubtleVocabularySources/main.swift` - Main vocabulary testing with different strategies
+- `TestCleanPrefixSources/main.swift` - Prefix cleaning validation and comparison
+
+Run with: 
+- `swift run TestSubtleVocabulary` - Test different prefix strategies
+- `swift run TestCleanPrefix` - Test prefix cleaning approach
 
 ---
 

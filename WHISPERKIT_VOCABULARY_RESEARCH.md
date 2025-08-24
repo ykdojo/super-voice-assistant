@@ -72,13 +72,59 @@ For `AudioTranscriptionManager.swift`:
 2. Post-process to remove artificial prefix
 3. Filter tokens to exclude special tokens
 4. Keep vocabulary concise for token efficiency
+5. **IMPORTANT**: Only enable for Large V3/V3 Turbo models (smaller models fail)
 
-## Test File
-## Test File
+## 🎯 Model Compatibility Results
+
+### ✅ **Compatible Models (4/4 Score)**
+- **Large V3 Turbo** (`openai_whisper-large-v3-v20240930_turbo`) - **RECOMMENDED**
+- **Large V3** (`openai_whisper-large-v3-v20240930`)
+
+**Perfect Results**: Correctly transcribe technical terms, preserve formatting, clean output
+
+### ❌ **Incompatible Models**
+- **Tiny** (`openai_whisper-tiny`) - Returns empty string with vocabulary
+- **Distil-Whisper V3** (`distil-whisper_distil-large-v3`) - Returns only period with vocabulary
+
+**Issue**: Smaller models fail catastrophically when `prefixTokens` are used
+
+### Detailed Test Results
+**Audio**: "I want to put this in CLAUDE.md using Claude Code"  
+**Vocabulary**: "CLAUDE.md Claude Code"
+
+| Model | Baseline Result | Enhanced Result | Score | Status |
+|-------|----------------|-----------------|-------|--------|
+| **Large V3 Turbo** | `'cloud.emity using cloud code'` | `'Claude.md using Claude Code'` | 4/4 | ✅ Excellent |
+| **Large V3** | `'cloud.emity using cloud code'` | `'Claude.md using Claude Code'` | 4/4 | ✅ Excellent |
+| **Distil-Whisper V3** | `'cloud.md using cloud code'` | `'.'` | 2/4 | ❌ Fails |
+| **Tiny** | `'Cloud.MD using Cloud Code'` | `''` | 2/4 | ❌ Fails |
+
+**Quality Metrics**:
+- ✅ 'Claude' recognized correctly (not 'cloud')
+- ✅ '.md' file extension preserved
+- ✅ Clean output (no artificial prefix)
+- ✅ Clear improvement over baseline
+
+### Production Recommendation
+```swift
+// Only enable custom vocabulary for large models
+let isLargeModel = modelName.contains("large")
+let vocabulary = isLargeModel ? customVocabulary : nil
+```
+
+## Test Files
+
+### Single Model Test
 **Location:** `TestCustomVocabularySources/main.swift`  
 **Run:** `swift run TestCustomVocabulary`
 
 Demonstrates complete solution with baseline comparison and prefix cleaning validation.
+
+### Multi-Model Compatibility Test
+**Location:** `TestVocabularyModels/main.swift`  
+**Run:** `swift run TestVocabularyModels`
+
+Tests custom vocabulary across all available WhisperKit models to determine compatibility.
 
 ---
 *Research completed: Production-ready WhisperKit custom vocabulary solution.*
@@ -102,22 +148,30 @@ func transcribe(audioURL: URL, customVocabulary: String? = nil) async -> String?
         skipSpecialTokens: true
     )
     
-    // Add custom vocabulary if provided
+    // Add custom vocabulary if provided (LARGE MODELS ONLY)
     if let vocabulary = customVocabulary, !vocabulary.isEmpty {
-        let prefixText = " \(vocabulary)"  // Add space prefix for context
-        let prefixTokens = tokenizer.encode(text: prefixText).filter { 
-            $0 < tokenizer.specialTokens.specialTokenBegin 
+        // Check if model supports custom vocabulary
+        let isLargeModel = modelName?.contains("large") ?? false
+        
+        if isLargeModel {
+            let prefixText = " \(vocabulary)"  // Add space prefix for context
+            let prefixTokens = tokenizer.encode(text: prefixText).filter { 
+                $0 < tokenizer.specialTokens.specialTokenBegin 
+            }
+            decodingOptions.prefixTokens = prefixTokens
         }
-        decodingOptions.prefixTokens = prefixTokens
     }
     
     // Perform transcription
     let result = try await whisperKit.transcribe(audioPath: audioURL.path, decodeOptions: decodingOptions)
     let rawTranscript = result.first?.text ?? ""
     
-    // Clean the prefix if vocabulary was used
+    // Clean the prefix if vocabulary was used AND model supports it
     if let vocabulary = customVocabulary, !vocabulary.isEmpty {
-        return cleanTranscript(rawTranscript, prefix: vocabulary)
+        let isLargeModel = modelName?.contains("large") ?? false
+        if isLargeModel {
+            return cleanTranscript(rawTranscript, prefix: vocabulary)
+        }
     }
     
     return rawTranscript

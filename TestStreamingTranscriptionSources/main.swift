@@ -9,9 +9,10 @@ class StreamingTranscriptionTest {
     private var audioStreamTranscriber: AudioStreamTranscriber?
     private var isStreaming = false
     
-    // Track streaming results as an array
-    private var segmentArray: [String] = []  // Array to track confirmed segments + current unconfirmed segment
-    private var confirmedSegmentCount = 0    // Track how many segments are confirmed
+    // Track confirmed segments and current text separately
+    private var confirmedSegments: [String] = []
+    private var lastDisplayedText = ""
+    private var maxTextLengthSeen = 0  // Prevent display from getting shorter
     
     init() {
         print("🎯 Streaming Transcription Test")
@@ -122,14 +123,11 @@ class StreamingTranscriptionTest {
         await transcriber.stopStreamTranscription()
         isStreaming = false
         
-        // Show final result from confirmed segments only
-        let finalText = segmentArray.prefix(confirmedSegmentCount).joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
-        
         print("\n" + String(repeating: "=", count: 50))
         print("🏁 FINAL TRANSCRIPTION")
         print(String(repeating: "=", count: 50))
-        if !finalText.isEmpty {
-            print(finalText)
+        if !lastDisplayedText.isEmpty {
+            print(lastDisplayedText)
         } else {
             print("(No speech detected)")
         }
@@ -137,8 +135,6 @@ class StreamingTranscriptionTest {
     }
     
     private func handleStateChange(oldState: AudioStreamTranscriber.State, newState: AudioStreamTranscriber.State) {
-        var arrayChanged = false
-        
         // Handle newly confirmed segments
         if newState.confirmedSegments.count > oldState.confirmedSegments.count {
             let newSegments = Array(newState.confirmedSegments.suffix(newState.confirmedSegments.count - oldState.confirmedSegments.count))
@@ -146,40 +142,36 @@ class StreamingTranscriptionTest {
             for segment in newSegments {
                 let segmentText = segment.text.trimmingCharacters(in: .whitespacesAndNewlines)
                 if !segmentText.isEmpty && isValidSpeechText(segmentText) {
-                    // If we have an unconfirmed segment at the end, replace it with the confirmed one
-                    if segmentArray.count > confirmedSegmentCount {
-                        segmentArray[confirmedSegmentCount] = segmentText
-                    } else {
-                        // Add new confirmed segment
-                        segmentArray.append(segmentText)
-                    }
-                    confirmedSegmentCount += 1
-                    arrayChanged = true
-                    print("✅ Confirmed: \(segmentText)")
+                    confirmedSegments.append(segmentText)
+                    print("✅ Confirmed segment: \(segmentText)")
                 }
             }
         }
         
-        // Handle current unconfirmed text (hypothesis)
-        let currentUnconfirmedText = newState.currentText.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Get the current unconfirmed text
+        let currentText = newState.currentText.trimmingCharacters(in: .whitespacesAndNewlines)
         
-        if !currentUnconfirmedText.isEmpty && isValidSpeechText(currentUnconfirmedText) {
-            // Add or update the unconfirmed segment at the end
-            if segmentArray.count > confirmedSegmentCount {
-                // Replace existing unconfirmed segment
-                segmentArray[confirmedSegmentCount] = currentUnconfirmedText
+        // Build the complete text: confirmed segments + current text
+        var fullText = ""
+        if !confirmedSegments.isEmpty {
+            fullText = confirmedSegments.joined(separator: " ")
+        }
+        if !currentText.isEmpty && isValidSpeechText(currentText) {
+            if !fullText.isEmpty {
+                fullText += " " + currentText
             } else {
-                // Add new unconfirmed segment
-                segmentArray.append(currentUnconfirmedText)
+                fullText = currentText
             }
-            arrayChanged = true
         }
-        // Note: We never remove segments from the array - it should only grow
         
-        // Print the entire array when it changes
-        if arrayChanged {
-            printCurrentState()
+        // CRITICAL: Never show shorter text than we've already shown
+        // If the new fullText is shorter than what we last displayed, keep showing the last one
+        if fullText.count >= lastDisplayedText.count && !fullText.isEmpty {
+            lastDisplayedText = fullText
+            maxTextLengthSeen = max(maxTextLengthSeen, fullText.count)
+            print("📝 \(fullText)")
         }
+        // If text got shorter, silently keep the previous text (don't show warning)
     }
     
     private func isValidSpeechText(_ text: String) -> Bool {
@@ -192,25 +184,6 @@ class StreamingTranscriptionTest {
         }
         
         return true
-    }
-    
-    private func printCurrentState() {
-        print("\n📝 Current transcription state:")
-        if segmentArray.isEmpty {
-            print("   (Empty)")
-            return
-        }
-        
-        for (index, segment) in segmentArray.enumerated() {
-            if index < confirmedSegmentCount {
-                print("   [\(index + 1)] ✅ \(segment)")
-            } else {
-                print("   [\(index + 1)] ⏳ \(segment)")
-            }
-        }
-        
-        print("   Full text: \(segmentArray.joined(separator: " "))")
-        print()
     }
 }
 

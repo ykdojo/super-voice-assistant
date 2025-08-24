@@ -33,7 +33,7 @@ public struct ModelData {
             accuracy: "97.6%",  // Calculated from 2.43% WER validation-clean
             accuracyNote: "English-only: 2.43% WER LibriSpeech validation-clean (HF model card Jan 2025)",
             languages: "English only",
-            description: "Fastest high-accuracy option for English",
+            description: "Fastest high-accuracy option for English. Custom vocabulary: Not supported",
             sourceURL: "https://huggingface.co/distil-whisper/distil-large-v3"
         ),
         // Whisper Large v3 Turbo
@@ -53,7 +53,7 @@ public struct ModelData {
             accuracy: "~96%",  // Similar to large-v2 performance
             accuracyNote: "4 decoder layers, similar to large-v2 accuracy (OpenAI Oct 1, 2024)",
             languages: "99 languages",
-            description: "Fast multilingual transcription with minimal accuracy loss",
+            description: "Fast multilingual transcription with minimal accuracy loss. Custom vocabulary: Supported",
             sourceURL: "https://huggingface.co/openai/whisper-large-v3-turbo"  // Official model card
         ),
         // Whisper Large v3
@@ -73,7 +73,7 @@ public struct ModelData {
             accuracy: "98.2%",  // Calculated from 1.80% WER on LibriSpeech test-clean
             accuracyNote: "State-of-the-art: 1.80% WER LibriSpeech test-clean (Aqua Voice Nov 2024)",
             languages: "99 languages",
-            description: "Highest accuracy, best for professional transcription",
+            description: "Highest accuracy, best for professional transcription. Custom vocabulary: Supported",
             sourceURL: "https://huggingface.co/openai/whisper-large-v3"  // Official model card
         )
     ]
@@ -90,7 +90,7 @@ public struct ModelData {
                 accuracy: "~87%",
                 accuracyNote: "Test model only - not for production use",
                 languages: "99 languages",
-                description: "⚠️ DEV ONLY: Quick testing model with lower accuracy",
+                description: "⚠️ DEV ONLY: Quick testing model with lower accuracy. Custom vocabulary: Not supported",
                 sourceURL: "https://huggingface.co/openai/whisper-tiny"
             )
         )

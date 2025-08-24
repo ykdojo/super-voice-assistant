@@ -69,6 +69,41 @@ The app will appear in your menu bar as a waveform icon.
 - **Shift+Alt+A**: Show transcription history window
 - **Escape**: Cancel recording (when recording is active)
 
+## Custom Vocabulary Enhancement
+
+The app includes intelligent custom vocabulary support that automatically enhances transcription accuracy for domain-specific terms.
+
+### How It Works
+
+The custom vocabulary feature uses **prefix tokens** to guide compatible WhisperKit models toward recognizing specific terms more accurately. When enabled, the app:
+
+1. **Smart Model Detection**: Automatically detects if your selected model supports custom vocabulary
+2. **Enhanced Transcription**: Uses vocabulary hints for better recognition of technical terms
+3. **Clean Output**: Automatically removes vocabulary prefixes from final transcriptions
+4. **Graceful Fallback**: Uses standard transcription for incompatible models
+
+### Supported Models
+
+- **Large v3 Turbo** - Fully supported
+- **Large v3** - Fully supported
+- **Distil Large v3** - Not compatible
+- **Tiny** - Not compatible
+
+### Configuration
+
+Edit `vocabulary_config.json` to customize vocabulary terms:
+
+```json
+[
+  "CLAUDE.md",
+  "Claude Code"
+]
+```
+
+**Example Enhancement:**
+- Without vocabulary: "I want to put this in cloud.emity using cloud code"
+- With vocabulary: "I want to put this in Claude.md using Claude Code"
+
 ## Available Commands
 
 ```bash

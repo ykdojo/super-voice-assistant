@@ -77,15 +77,30 @@ class AudioTranscriptionManager {
     
     /// Clean vocabulary prefix from transcription result
     private func cleanVocabularyPrefix(_ transcript: String, vocabulary: String) -> String {
-        guard transcript.hasPrefix(vocabulary) else { return transcript }
+        // First clean any occurrences anywhere in the text
+        var cleaned = cleanVocabularyPatterns(transcript, vocabulary: vocabulary)
+        
+        // Then also handle prefix removal (original logic)
+        guard cleaned.hasPrefix(vocabulary) else { return cleaned }
         
         let patterns = [vocabulary + ": ", vocabulary + ". ", vocabulary + " ", vocabulary]
         for pattern in patterns {
-            if transcript.hasPrefix(pattern) {
-                return String(transcript.dropFirst(pattern.count)).trimmingCharacters(in: .whitespaces)
+            if cleaned.hasPrefix(pattern) {
+                return String(cleaned.dropFirst(pattern.count)).trimmingCharacters(in: .whitespaces)
             }
         }
-        return transcript
+        return cleaned
+    }
+    
+    /// Clean vocabulary patterns anywhere in the transcription text
+    private func cleanVocabularyPatterns(_ transcript: String, vocabulary: String) -> String {
+        // Create the main problematic pattern: vocabulary + ": "
+        let pattern = vocabulary + ": "
+        
+        // Remove all occurrences of this pattern anywhere in the text
+        let result = transcript.replacingOccurrences(of: pattern, with: "")
+        
+        return result.trimmingCharacters(in: .whitespaces)
     }
     
     private func setupAudioEngine() {

@@ -9,8 +9,9 @@ class StreamingTranscriptionTest {
     private var audioStreamTranscriber: AudioStreamTranscriber?
     private var isStreaming = false
     
-    // Track streaming results
-    private var allConfirmedText: String = ""
+    // Track streaming results as an array
+    private var segmentArray: [String] = []  // Array to track confirmed segments + current unconfirmed segment
+    private var confirmedSegmentCount = 0    // Track how many segments are confirmed
     
     init() {
         print("🎯 Streaming Transcription Test")
@@ -121,11 +122,11 @@ class StreamingTranscriptionTest {
         await transcriber.stopStreamTranscription()
         isStreaming = false
         
-        // Combine all text and show final result
-        let finalText = allConfirmedText.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Show final result from confirmed segments only
+        let finalText = segmentArray.prefix(confirmedSegmentCount).joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
         
         print("\n" + String(repeating: "=", count: 50))
-        print("� FINAL TRANSCRIPTION")
+        print("🏁 FINAL TRANSCRIPTION")
         print(String(repeating: "=", count: 50))
         if !finalText.isEmpty {
             print(finalText)
@@ -136,19 +137,85 @@ class StreamingTranscriptionTest {
     }
     
     private func handleStateChange(oldState: AudioStreamTranscriber.State, newState: AudioStreamTranscriber.State) {
-        // Handle confirmed segments (these are final and won't change)
+        var arrayChanged = false
+        
+        // Handle newly confirmed segments
         if newState.confirmedSegments.count > oldState.confirmedSegments.count {
             let newSegments = Array(newState.confirmedSegments.suffix(newState.confirmedSegments.count - oldState.confirmedSegments.count))
+            
             for segment in newSegments {
                 let segmentText = segment.text.trimmingCharacters(in: .whitespacesAndNewlines)
-                if !segmentText.isEmpty {
-                    allConfirmedText += segmentText + " "
-                    print("✅ \(segmentText)")
+                if !segmentText.isEmpty && isValidSpeechText(segmentText) {
+                    // If we have an unconfirmed segment at the end, replace it with the confirmed one
+                    if segmentArray.count > confirmedSegmentCount {
+                        segmentArray[confirmedSegmentCount] = segmentText
+                    } else {
+                        // Add new confirmed segment
+                        segmentArray.append(segmentText)
+                    }
+                    confirmedSegmentCount += 1
+                    arrayChanged = true
+                    print("✅ Confirmed: \(segmentText)")
                 }
             }
         }
         
-        // No live progress updates - only show confirmed segments
+        // Handle current unconfirmed text (hypothesis)
+        let currentUnconfirmedText = newState.currentText.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        if !currentUnconfirmedText.isEmpty && isValidSpeechText(currentUnconfirmedText) {
+            // Add or update the unconfirmed segment at the end
+            if segmentArray.count > confirmedSegmentCount {
+                // Replace existing unconfirmed segment
+                segmentArray[confirmedSegmentCount] = currentUnconfirmedText
+            } else {
+                // Add new unconfirmed segment
+                segmentArray.append(currentUnconfirmedText)
+            }
+            arrayChanged = true
+        } else {
+            // No current valid unconfirmed text, remove it if it exists
+            if segmentArray.count > confirmedSegmentCount {
+                segmentArray.removeLast()
+                arrayChanged = true
+            }
+        }
+        
+        // Print the entire array when it changes
+        if arrayChanged {
+            printCurrentState()
+        }
+    }
+    
+    private func isValidSpeechText(_ text: String) -> Bool {
+        // Filter out only the specific system message we saw
+        let lowercaseText = text.lowercased()
+        
+        // Check for the specific "waiting for speech" message
+        if lowercaseText.contains("waiting for speech") {
+            return false
+        }
+        
+        return true
+    }
+    
+    private func printCurrentState() {
+        print("\n📝 Current transcription state:")
+        if segmentArray.isEmpty {
+            print("   (Empty)")
+            return
+        }
+        
+        for (index, segment) in segmentArray.enumerated() {
+            if index < confirmedSegmentCount {
+                print("   [\(index + 1)] ✅ \(segment)")
+            } else {
+                print("   [\(index + 1)] ⏳ \(segment)")
+            }
+        }
+        
+        print("   Full text: \(segmentArray.joined(separator: " "))")
+        print()
     }
 }
 

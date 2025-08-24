@@ -13,6 +13,7 @@ class StreamingTranscriptionTest {
     private var confirmedSegments: [String] = []
     private var lastDisplayedText = ""
     private var maxTextLengthSeen = 0  // Prevent display from getting shorter
+    private var lastUpdateTime: Date = Date()
     
     init() {
         print("🎯 Streaming Transcription Test")
@@ -119,6 +120,8 @@ class StreamingTranscriptionTest {
     func stopStreaming() async {
         guard let transcriber = audioStreamTranscriber else { return }
         
+        // Clear the streaming line before showing final output
+        print("\r\u{001B}[K", terminator: "")
         print("🛑 Stopping...")
         await transcriber.stopStreamTranscription()
         isStreaming = false
@@ -143,7 +146,7 @@ class StreamingTranscriptionTest {
                 let segmentText = segment.text.trimmingCharacters(in: .whitespacesAndNewlines)
                 if !segmentText.isEmpty && isValidSpeechText(segmentText) {
                     confirmedSegments.append(segmentText)
-                    print("✅ Confirmed segment: \(segmentText)")
+                    // Don't show confirmed segments anymore per user request
                 }
             }
         }
@@ -166,12 +169,20 @@ class StreamingTranscriptionTest {
         
         // CRITICAL: Never show shorter text than we've already shown
         // If the new fullText is shorter than what we last displayed, keep showing the last one
-        if fullText.count >= lastDisplayedText.count && !fullText.isEmpty && fullText != lastDisplayedText {
+        // Also add throttling to prevent rapid updates and exact duplicate checking
+        let now = Date()
+        let timeSinceLastUpdate = now.timeIntervalSince(lastUpdateTime)
+        
+        if fullText.count >= lastDisplayedText.count && 
+           !fullText.isEmpty && 
+           fullText != lastDisplayedText && 
+           timeSinceLastUpdate > 0.1 {  // Throttle updates to max 10 per second
+            
             lastDisplayedText = fullText
             maxTextLengthSeen = max(maxTextLengthSeen, fullText.count)
-            print("📝 \(fullText)")
+            lastUpdateTime = now
+            displayStreamingText(fullText)
         }
-        // If text got shorter, silently keep the previous text (don't show warning)
     }
     
     private func isValidSpeechText(_ text: String) -> Bool {
@@ -184,6 +195,12 @@ class StreamingTranscriptionTest {
         }
         
         return true
+    }
+    
+    private func displayStreamingText(_ text: String) {
+        // Clear the entire line first, then display new text
+        print("\r\u{001B}[K📝 \(text)", terminator: "")
+        fflush(stdout)  // Force immediate display
     }
 }
 

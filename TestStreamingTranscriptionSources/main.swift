@@ -3,6 +3,7 @@ import AVFoundation
 import WhisperKit
 import SharedModels
 import Dispatch
+import AppKit
 
 @MainActor
 class StreamingTranscriptionTest {
@@ -109,7 +110,7 @@ class StreamingTranscriptionTest {
             return
         }
         
-        print("🎤 Starting transcription... (press Ctrl+C to stop)")
+        print("🎤 Starting transcription... (press Ctrl+C to copy current text to clipboard)")
         
         isStreaming = true
         
@@ -201,6 +202,23 @@ class StreamingTranscriptionTest {
         print("\r\u{001B}[K📝 \(text)", terminator: "")
         fflush(stdout)  // Force immediate display
     }
+    
+    func copyCurrentTextToClipboard() {
+        let textToCopy = lastDisplayedText.isEmpty ? "(No speech detected)" : lastDisplayedText
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(textToCopy, forType: .string)
+        
+        // Clear the current transcription state for fresh start
+        confirmedSegments.removeAll()
+        lastDisplayedText = ""
+        maxTextLengthSeen = 0
+        lastUpdateTime = Date()
+        
+        // Clear the streaming line and show copy confirmation
+        print("\r\u{001B}[K📋 Copied to clipboard: \(textToCopy)")
+        print("🎤 Ready for new transcription... (press Ctrl+C to copy current text)")
+    }
 }
 
 @main
@@ -210,18 +228,16 @@ struct TestStreamingTranscription {
         print(String(repeating: "=", count: 35))
         
         let test = StreamingTranscriptionTest()
-        let semaphore = DispatchSemaphore(value: 0)
-
+        
         // Set up a signal source for Ctrl+C
         let sigintSource = DispatchSource.makeSignalSource(signal: SIGINT, queue: .main)
         
         signal(SIGINT, SIG_IGN) // Ignore default handler
 
         sigintSource.setEventHandler {
-            print("\nCaught SIGINT. Gracefully shutting down...")
+            print("\n📋 Ctrl+C pressed - copying current text to clipboard...")
             Task {
-                await test.stopStreaming()
-                semaphore.signal()
+                test.copyCurrentTextToClipboard()
             }
         }
         sigintSource.resume()
@@ -252,9 +268,13 @@ struct TestStreamingTranscription {
             // Start streaming
             try await test.startStreaming()
             
-            // Wait for the signal to exit
-            semaphore.wait()
-            print("✅ Transcription finished.")
+            // Keep the program running indefinitely
+            print("🔄 Transcription running continuously. Press Ctrl+C to copy current text to clipboard.")
+            
+            // Use a different approach to keep the program running
+            while true {
+                try await Task.sleep(nanoseconds: 1_000_000_000) // Sleep for 1 second
+            }
             
         } catch {
             print("❌ Error: \(error)")

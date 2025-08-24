@@ -2,6 +2,7 @@ import Foundation
 import AVFoundation
 import WhisperKit
 import SharedModels
+import Dispatch
 
 @MainActor
 class StreamingTranscriptionTest {
@@ -85,7 +86,7 @@ class StreamingTranscriptionTest {
             tokenizer: whisperKit.tokenizer!,
             audioProcessor: audioProcessor,
             decodingOptions: decodingOptions,
-            requiredSegmentsForConfirmation: 1,  // Confirm segments faster
+            requiredSegmentsForConfirmation: 0,  // Confirm segments faster
             silenceThreshold: 0.2,  // More sensitive to detect speech breaks
             compressionCheckWindow: 60,
             useVAD: true,  // Enable voice activity detection
@@ -211,6 +212,21 @@ struct TestStreamingTranscription {
         print(String(repeating: "=", count: 35))
         
         let test = StreamingTranscriptionTest()
+        let semaphore = DispatchSemaphore(value: 0)
+
+        // Set up a signal source for Ctrl+C
+        let sigintSource = DispatchSource.makeSignalSource(signal: SIGINT, queue: .main)
+        
+        signal(SIGINT, SIG_IGN) // Ignore default handler
+
+        sigintSource.setEventHandler {
+            print("\nCaught SIGINT. Gracefully shutting down...")
+            Task {
+                await test.stopStreaming()
+                semaphore.signal()
+            }
+        }
+        sigintSource.resume()
         
         do {
             // Check microphone permission
@@ -228,10 +244,9 @@ struct TestStreamingTranscription {
             // Start streaming
             try await test.startStreaming()
             
-            // Keep running until Ctrl+C
-            while true {
-                try await Task.sleep(nanoseconds: 1_000_000_000)
-            }
+            // Wait for the signal to exit
+            semaphore.wait()
+            print("✅ Transcription finished.")
             
         } catch {
             print("❌ Error: \(error)")

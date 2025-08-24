@@ -10,13 +10,11 @@ struct TestVocabularyModels {
         
         let models = [
             ("openai_whisper-tiny", "Tiny"),
-            ("distil-whisper_distil-large-v3", "Distil-Whisper V3"),
-            ("openai_whisper-large-v3-v20240930_turbo", "Large V3 Turbo"),
             ("openai_whisper-large-v3-v20240930", "Large V3")
         ]
         
         let audioFilePath = "/Users/ykdojo/Desktop/projects/super-voice-assistant/claude.wav"
-        let vocabulary = "CLAUDE.md Claude Code"
+        let vocabulary = loadVocabulary()
         
         print("\n🎵 Audio: 'I want to put this in CLAUDE.md using Claude Code'")
         print("📝 Vocabulary: '\(vocabulary)'")
@@ -91,6 +89,20 @@ struct TestVocabularyModels {
         print("✨ Smart model test complete!")
         print("💡 Vocabulary-compatible models get enhanced transcription")
         print("💡 Incompatible models use reliable standard transcription")
+    }
+    
+    /// Load vocabulary from configuration file
+    static func loadVocabulary() -> String {
+        let configPath = "/Users/ykdojo/Desktop/projects/super-voice-assistant/vocabulary_config.json"
+        
+        do {
+            let data = try Data(contentsOf: URL(fileURLWithPath: configPath))
+            let terms = try JSONDecoder().decode([String].self, from: data)
+            return terms.joined(separator: " ")
+        } catch {
+            print("⚠️  Warning: Could not load vocabulary config, using default")
+            return "CLAUDE.md Claude Code"  // Fallback
+        }
     }
     
     /// Determines if a model is compatible with custom vocabulary

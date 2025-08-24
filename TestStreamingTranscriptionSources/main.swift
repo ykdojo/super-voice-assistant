@@ -13,12 +13,10 @@ class StreamingTranscriptionTest {
     private var allConfirmedText: String = ""
     private var currentUnconfirmedText: String = ""
     private var lastProgressText: String = ""
-    private var lastDisplayedLiveText: String = ""  // Track what we actually displayed
     private var isShowingProgress: Bool = false
     
     init() {
         print("🎯 Streaming Transcription Test")
-        print("This test will continuously transcribe your speech in real-time chunks")
     }
     
     // MARK: - Terminal UI Helpers
@@ -32,7 +30,7 @@ class StreamingTranscriptionTest {
         // Only update if the text has actually changed
         if text != lastProgressText {
             clearCurrentLine()
-            print("🔄 \(text)", terminator: "")
+            print("\r🎙️  \(text)", terminator: "")
             fflush(stdout)
             isShowingProgress = true
             lastProgressText = text
@@ -46,26 +44,6 @@ class StreamingTranscriptionTest {
             lastProgressText = ""
         }
         print("✅ \(text)")
-        fflush(stdout)
-    }
-    
-    private func printUnconfirmed(_ text: String) {
-        if isShowingProgress {
-            clearCurrentLine()
-            isShowingProgress = false
-            lastProgressText = ""
-        }
-        print("⏳ \(text)")
-        fflush(stdout)
-    }
-    
-    private func printStatus(_ text: String) {
-        if isShowingProgress {
-            clearCurrentLine()
-            isShowingProgress = false
-            lastProgressText = ""
-        }
-        print("🔇 \(text)")
         fflush(stdout)
     }
     
@@ -96,7 +74,7 @@ class StreamingTranscriptionTest {
             logLevel: .error
         )
         
-        print("✅ WhisperKit loaded successfully")
+        print("✅ Model loaded")
     }
     
     func setupStreamTranscriber() async throws {
@@ -146,10 +124,7 @@ class StreamingTranscriptionTest {
             }
         )
         
-        print("🔧 Audio stream transcriber configured")
-        print("   - VAD enabled with silence threshold: 0.3")
-        print("   - Requires 2 segments for confirmation")
-        print("   - Using tiny model for low latency")
+        print("✅ Transcriber ready")
     }
     
     func startStreaming() async throws {
@@ -163,12 +138,7 @@ class StreamingTranscriptionTest {
             return
         }
         
-        print("\n🎤 Starting continuous streaming transcription...")
-        print("💡 Real-time transcription with improved UI:")
-        print("   � LIVE: Updates in place as you speak")
-        print("   ⏳ DRAFT: Unconfirmed segments (may change)")
-        print("   ✅ Final confirmed segments")
-        print("🛑 Press Ctrl+C to stop\n")
+        print("🎤 Starting transcription... (press Ctrl+C to stop)")
         
         isStreaming = true
         
@@ -178,22 +148,25 @@ class StreamingTranscriptionTest {
     func stopStreaming() async {
         guard let transcriber = audioStreamTranscriber else { return }
         
-        print("\n🛑 Stopping streaming transcription...")
+        if isShowingProgress {
+            clearCurrentLine()
+            isShowingProgress = false
+        }
+        
+        print("🛑 Stopping...")
         await transcriber.stopStreamTranscription()
         isStreaming = false
         
-        // Print final summary
+        // Combine all text and show final result
+        let finalText = allConfirmedText.trimmingCharacters(in: .whitespacesAndNewlines)
+        
         print("\n" + String(repeating: "=", count: 50))
-        print("📋 FINAL TRANSCRIPTION SUMMARY")
+        print("� FINAL TRANSCRIPTION")
         print(String(repeating: "=", count: 50))
-        if !allConfirmedText.isEmpty {
-            print("✅ Confirmed: \(allConfirmedText)")
-        }
-        if !currentUnconfirmedText.isEmpty {
-            print("⏳ Unconfirmed: \(currentUnconfirmedText)")
-        }
-        if allConfirmedText.isEmpty && currentUnconfirmedText.isEmpty {
-            print("❌ No transcription captured")
+        if !finalText.isEmpty {
+            print(finalText)
+        } else {
+            print("(No speech detected)")
         }
         print(String(repeating: "=", count: 50))
     }
@@ -205,28 +178,21 @@ class StreamingTranscriptionTest {
             for segment in newSegments {
                 let segmentText = segment.text.trimmingCharacters(in: .whitespacesAndNewlines)
                 if !segmentText.isEmpty {
+                    if isShowingProgress {
+                        clearCurrentLine()
+                        isShowingProgress = false
+                    }
                     allConfirmedText += segmentText + " "
-                    printConfirmed("\"\(segmentText)\"")
+                    print("✅ \(segmentText)")
                 }
             }
         }
         
-        // Handle unconfirmed segments (these may change as more audio comes in)
-        let newUnconfirmedText = newState.unconfirmedSegments.map { $0.text.trimmingCharacters(in: .whitespacesAndNewlines) }.joined(separator: " ")
-        
-        if newUnconfirmedText != currentUnconfirmedText && !newUnconfirmedText.isEmpty {
-            currentUnconfirmedText = newUnconfirmedText
-            printUnconfirmed("DRAFT: \"\(newUnconfirmedText)\"")
-        }
-        
-        // Handle real-time progress text (immediate feedback) - update in place
-        if newState.currentText != oldState.currentText {
+        // Show live transcription progress (updates in place)
+        if newState.currentText != lastProgressText {
             let progressText = newState.currentText.trimmingCharacters(in: .whitespacesAndNewlines)
-            if progressText != "Waiting for speech..." && !progressText.isEmpty {
-                updateProgressLine("LIVE: \"\(progressText)\"")
-            } else if progressText == "Waiting for speech..." && lastProgressText != progressText {
-                printStatus("Waiting for speech... (speak now)")
-                lastProgressText = progressText
+            if !progressText.isEmpty && progressText != "Waiting for speech..." {
+                updateProgressLine(progressText)
             }
         }
     }
@@ -235,43 +201,30 @@ class StreamingTranscriptionTest {
 @main
 struct TestStreamingTranscription {
     static func main() async {
-        print("🎙️  Real-Time Streaming Transcription Test")
-        print("==========================================")
-        print("This test demonstrates continuous, chunked transcription")
-        print("similar to how modern voice assistants work.\n")
+        print("🎙️  Streaming Transcription Test")
+        print(String(repeating: "=", count: 35))
         
         let test = StreamingTranscriptionTest()
         
-        // Simple approach - let the streaming run until user hits Ctrl+C
-        // The operating system will handle the SIGINT signal
-        
         do {
             // Check microphone permission
-            print("🎤 Requesting microphone permission...")
             let hasPermission = await test.requestMicrophonePermission()
             
             guard hasPermission else {
-                print("❌ Microphone permission denied")
-                print("Please grant microphone access in System Settings > Privacy & Security > Microphone")
+                print("❌ Microphone permission required")
                 exit(1)
             }
-            print("✅ Microphone permission granted")
             
-            // Load model
-            print("\n📦 Loading WhisperKit model...")
+            // Load model and setup
             try await test.loadWhisperModel()
-            
-            // Setup transcriber
-            print("\n🔧 Setting up streaming transcriber...")
             try await test.setupStreamTranscriber()
             
             // Start streaming
             try await test.startStreaming()
             
-            // Keep running - user will press Ctrl+C to stop
-            print("🔄 Streaming in progress... Press Ctrl+C to stop")
+            // Keep running until Ctrl+C
             while true {
-                try await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+                try await Task.sleep(nanoseconds: 1_000_000_000)
             }
             
         } catch {
@@ -279,7 +232,5 @@ struct TestStreamingTranscription {
             await test.stopStreaming()
             exit(1)
         }
-        
-        print("\n👋 Test completed!")
     }
 }

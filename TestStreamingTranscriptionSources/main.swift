@@ -28,9 +28,7 @@ class StreamingTranscriptionTest {
         }
     }
     
-    func loadWhisperModel() async throws {
-        // Use a smaller, faster model for real-time streaming
-        let modelName = "openai_whisper-tiny"
+    func loadWhisperModel(modelName: String) async throws {
         let modelManager = WhisperModelManager.shared
         
         print("📦 Loading WhisperKit with model: \(modelName)")
@@ -227,7 +225,17 @@ struct TestStreamingTranscription {
             }
         }
         sigintSource.resume()
-        
+
+        // Determine model from command-line arguments
+        let useLargeModel = CommandLine.arguments.contains("--large")
+        let modelName = useLargeModel ? "openai_whisper-large-v3-v20240930" : "openai_whisper-tiny"
+
+        if useLargeModel {
+            print("✅ Using large model specified by --large flag.")
+        } else {
+            print("✅ Using default tiny model. Pass --large to use the large model.")
+        }
+
         do {
             // Check microphone permission
             let hasPermission = await test.requestMicrophonePermission()
@@ -238,7 +246,7 @@ struct TestStreamingTranscription {
             }
             
             // Load model and setup
-            try await test.loadWhisperModel()
+            try await test.loadWhisperModel(modelName: modelName)
             try await test.setupStreamTranscriber()
             
             // Start streaming
@@ -255,3 +263,4 @@ struct TestStreamingTranscription {
         }
     }
 }
+

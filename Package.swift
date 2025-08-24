@@ -38,7 +38,7 @@ let package = Package(
             targets: ["SharedModels"])
     ],
     dependencies: [
-        .package(url: "https://github.com/sindresorhus/KeyboardShortcuts", from: "2.0.0"),
+        .package(url: "https://github.com/sindresorhus/KeyboardShortcuts", exact: "1.8.0"),
         .package(url: "https://github.com/argmaxinc/WhisperKit", from: "0.13.0")
     ],
     targets: [

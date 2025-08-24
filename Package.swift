@@ -37,11 +37,8 @@ let package = Package(
             name: "TestTokenizer",
             targets: ["TestTokenizer"]),
         .executable(
-            name: "TestSubtleVocabulary",
-            targets: ["TestSubtleVocabulary"]),
-        .executable(
-            name: "TestCleanPrefix",
-            targets: ["TestCleanPrefix"]),
+            name: "TestCustomVocabulary",
+            targets: ["TestCustomVocabulary"]),
         .library(
             name: "SharedModels",
             targets: ["SharedModels"])
@@ -96,12 +93,8 @@ let package = Package(
             dependencies: ["WhisperKit"],
             path: "TestTokenizerSources"),
         .executableTarget(
-            name: "TestSubtleVocabulary",
+            name: "TestCustomVocabulary",
             dependencies: ["WhisperKit"],
-            path: "TestSubtleVocabularySources"),
-        .executableTarget(
-            name: "TestCleanPrefix",
-            dependencies: ["WhisperKit"],
-            path: "TestCleanPrefixSources")
+            path: "TestCustomVocabularySources")
     ]
 )

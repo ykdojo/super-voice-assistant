@@ -57,7 +57,8 @@ class AudioTranscriptionManager {
         do {
             let data = try Data(contentsOf: URL(fileURLWithPath: path))
             let terms = try JSONDecoder().decode([String].self, from: data)
-            return terms.joined(separator: " ")
+            let joinedTerms = terms.joined(separator: " ")
+            return "Custom vocabulary - \(joinedTerms)"
         } catch {
             print("⚠️  Warning: Could not load vocabulary config from \(path): \(error)")
             return nil

@@ -61,7 +61,8 @@ let package = Package(
             path: "Sources",
             resources: [
                 .copy("Assets.xcassets"),
-                .copy("AppIcon.icns")
+                .copy("AppIcon.icns"),
+                .copy("vocabulary_config.json")
             ]),
         .executableTarget(
             name: "TestDownload",

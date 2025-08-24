@@ -33,6 +33,61 @@ class AudioTranscriptionManager {
         requestMicrophonePermission()
     }
     
+    // MARK: - Custom Vocabulary Support
+    
+    /// Load vocabulary from configuration file
+    private func loadVocabulary() -> String? {
+        // Try to find the config file in the app bundle first, then fallback to workspace location
+        
+        // First try the main bundle
+        if let bundlePath = Bundle.main.path(forResource: "vocabulary_config", ofType: "json") {
+            return loadVocabularyFromPath(bundlePath)
+        }
+        
+        // Fallback to workspace location (for development)
+        let workspacePath = "/Users/ykdojo/Desktop/projects/super-voice-assistant/vocabulary_config.json"
+        if FileManager.default.fileExists(atPath: workspacePath) {
+            return loadVocabularyFromPath(workspacePath)
+        }
+        
+        return nil
+    }
+    
+    private func loadVocabularyFromPath(_ path: String) -> String? {
+        do {
+            let data = try Data(contentsOf: URL(fileURLWithPath: path))
+            let terms = try JSONDecoder().decode([String].self, from: data)
+            return terms.joined(separator: " ")
+        } catch {
+            print("⚠️  Warning: Could not load vocabulary config from \(path): \(error)")
+            return nil
+        }
+    }
+    
+    /// Determines if a model is compatible with custom vocabulary
+    /// Based on testing results: Large V3 models work, smaller models fail
+    private func isVocabularyCompatible(_ modelName: String) -> Bool {
+        let compatibleModels = [
+            "openai_whisper-large-v3-v20240930_turbo",  // Large V3 Turbo - TESTED ✅
+            "openai_whisper-large-v3-v20240930"         // Large V3 - TESTED ✅
+            // Note: distil-whisper_distil-large-v3 NOT tested yet - may not work due to distillation
+        ]
+        return compatibleModels.contains(modelName)
+    }
+    
+    /// Clean vocabulary prefix from transcription result
+    private func cleanVocabularyPrefix(_ transcript: String, vocabulary: String) -> String {
+        guard transcript.hasPrefix(vocabulary) else { return transcript }
+        
+        let patterns = [vocabulary + ": ", vocabulary + ". ", vocabulary + " ", vocabulary]
+        for pattern in patterns {
+            if transcript.hasPrefix(pattern) {
+                return String(transcript.dropFirst(pattern.count)).trimmingCharacters(in: .whitespaces)
+            }
+        }
+        return transcript
+    }
+    
     private func setupAudioEngine() {
         audioEngine = AVAudioEngine()
         inputNode = audioEngine.inputNode
@@ -206,33 +261,78 @@ class AudioTranscriptionManager {
             return
         }
         
+        // Check for custom vocabulary support
+        let selectedModelName = ModelStateManager.shared.selectedModel ?? ""
+        let vocabulary = loadVocabulary()
+        
+        // Get the actual WhisperKit model name for compatibility checking
+        let whisperKitModelName: String
+        if let modelInfo = ModelData.availableModels.first(where: { $0.name == selectedModelName }) {
+            whisperKitModelName = modelInfo.whisperKitModelName
+        } else {
+            whisperKitModelName = selectedModelName // fallback
+        }
+        
+        let supportsVocabulary = isVocabularyCompatible(whisperKitModelName)
+        let vocabularyToUse = (supportsVocabulary && vocabulary != nil) ? vocabulary : nil
+        
+        if let vocab = vocabularyToUse {
+            print("🎯 Using custom vocabulary: '\(vocab)' for model: \(selectedModelName) (\(whisperKitModelName))")
+        } else if vocabulary != nil && !supportsVocabulary {
+            print("💡 Custom vocabulary available but not compatible with model: \(selectedModelName) (\(whisperKitModelName))")
+        } else {
+            print("📝 Using standard transcription (no custom vocabulary)")
+        }
+        
         print("Transcribing \(audioBuffer.count) samples (\(Double(audioBuffer.count) / sampleRate) seconds)...")
         
         do {
+            // Prepare decoding options with optional vocabulary
+            var decodingOptions = DecodingOptions(
+                verbose: false,
+                task: .transcribe,
+                language: "en",
+                temperature: 0.0,
+                temperatureFallbackCount: 3,
+                sampleLength: 224,
+                topK: 5,
+                usePrefillPrompt: true,
+                usePrefillCache: true,
+                skipSpecialTokens: true,
+                withoutTimestamps: false,
+                clipTimestamps: [0],
+                suppressBlank: true,
+                supressTokens: nil
+            )
+            
+            // Add vocabulary prefix tokens if available and compatible
+            if let vocab = vocabularyToUse, let tokenizer = whisperKit.tokenizer {
+                let prefixTokens = tokenizer.encode(text: " \(vocab)").filter { 
+                    $0 < tokenizer.specialTokens.specialTokenBegin 
+                }
+                decodingOptions.prefixTokens = prefixTokens
+                print("🔤 Added \(prefixTokens.count) vocabulary prefix tokens")
+            }
+            
             let transcriptionResult = try await whisperKit.transcribe(
                 audioArray: audioBuffer,
-                decodeOptions: DecodingOptions(
-                    verbose: false,
-                    task: .transcribe,
-                    language: "en",
-                    temperature: 0.0,
-                    temperatureFallbackCount: 3,
-                    sampleLength: 224,
-                    topK: 5,
-                    usePrefillPrompt: true,
-                    usePrefillCache: true,
-                    skipSpecialTokens: true,
-                    withoutTimestamps: false,
-                    clipTimestamps: [0],
-                    suppressBlank: true,
-                    supressTokens: nil
-                )
+                decodeOptions: decodingOptions
             )
             
             isTranscribing = false
             
             if let firstResult = transcriptionResult.first {
-                let transcription = firstResult.text.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+                var transcription = firstResult.text.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+                
+                // Clean vocabulary prefix if it was used
+                if let vocab = vocabularyToUse, !transcription.isEmpty {
+                    let cleanedTranscription = cleanVocabularyPrefix(transcription, vocabulary: vocab)
+                    if cleanedTranscription != transcription {
+                        print("🧹 Cleaned vocabulary prefix. Original: '\(transcription)' -> Clean: '\(cleanedTranscription)'")
+                        transcription = cleanedTranscription
+                    }
+                }
+                
                 if !transcription.isEmpty {
                     print("✅ Transcription: \"\(transcription)\"")
                     

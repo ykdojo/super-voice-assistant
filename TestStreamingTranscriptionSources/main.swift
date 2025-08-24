@@ -11,40 +11,9 @@ class StreamingTranscriptionTest {
     
     // Track streaming results
     private var allConfirmedText: String = ""
-    private var currentUnconfirmedText: String = ""
-    private var lastProgressText: String = ""
-    private var isShowingProgress: Bool = false
     
     init() {
         print("🎯 Streaming Transcription Test")
-    }
-    
-    // MARK: - Terminal UI Helpers
-    
-    private func clearCurrentLine() {
-        print("\r\u{001B}[K", terminator: "")
-        fflush(stdout)
-    }
-    
-    private func updateProgressLine(_ text: String) {
-        // Only update if the text has actually changed
-        if text != lastProgressText {
-            clearCurrentLine()
-            print("\r🎙️  \(text)", terminator: "")
-            fflush(stdout)
-            isShowingProgress = true
-            lastProgressText = text
-        }
-    }
-    
-    private func printConfirmed(_ text: String) {
-        if isShowingProgress {
-            clearCurrentLine()
-            isShowingProgress = false
-            lastProgressText = ""
-        }
-        print("✅ \(text)")
-        fflush(stdout)
     }
     
     func requestMicrophonePermission() async -> Bool {
@@ -113,8 +82,8 @@ class StreamingTranscriptionTest {
             tokenizer: whisperKit.tokenizer!,
             audioProcessor: audioProcessor,
             decodingOptions: decodingOptions,
-            requiredSegmentsForConfirmation: 2,  // How many segments to keep unconfirmed
-            silenceThreshold: 0.3,  // VAD threshold (0.0 = very sensitive, 1.0 = only loud speech)
+            requiredSegmentsForConfirmation: 1,  // Confirm segments faster
+            silenceThreshold: 0.2,  // More sensitive to detect speech breaks
             compressionCheckWindow: 60,
             useVAD: true,  // Enable voice activity detection
             stateChangeCallback: { [weak self] oldState, newState in
@@ -148,11 +117,6 @@ class StreamingTranscriptionTest {
     func stopStreaming() async {
         guard let transcriber = audioStreamTranscriber else { return }
         
-        if isShowingProgress {
-            clearCurrentLine()
-            isShowingProgress = false
-        }
-        
         print("🛑 Stopping...")
         await transcriber.stopStreamTranscription()
         isStreaming = false
@@ -178,23 +142,13 @@ class StreamingTranscriptionTest {
             for segment in newSegments {
                 let segmentText = segment.text.trimmingCharacters(in: .whitespacesAndNewlines)
                 if !segmentText.isEmpty {
-                    if isShowingProgress {
-                        clearCurrentLine()
-                        isShowingProgress = false
-                    }
                     allConfirmedText += segmentText + " "
                     print("✅ \(segmentText)")
                 }
             }
         }
         
-        // Show live transcription progress (updates in place)
-        if newState.currentText != lastProgressText {
-            let progressText = newState.currentText.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !progressText.isEmpty && progressText != "Waiting for speech..." {
-                updateProgressLine(progressText)
-            }
-        }
+        // No live progress updates - only show confirmed segments
     }
 }
 

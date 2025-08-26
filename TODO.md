@@ -4,7 +4,7 @@
 
 - Voice recording with Shift+Alt+Z hotkey
 - WhisperKit transcription with auto-paste
-- Transcription history window (Shift+Alt+A) - also shown automatically when paste fails in certain apps
+- Transcription history window (Command+Option+A) - also shown automatically when paste fails in certain apps
 
 ## TODO Tasks
 

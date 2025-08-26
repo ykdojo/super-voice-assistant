@@ -32,8 +32,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
         
         // Create menu
         let menu = NSMenu()
-        menu.addItem(NSMenuItem(title: "Recording: Press Shift+Alt+Z", action: nil, keyEquivalent: ""))
-        menu.addItem(NSMenuItem(title: "History: Press Shift+Alt+A", action: nil, keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "Recording: Press Command+Option+Z", action: nil, keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "History: Press Command+Option+A", action: nil, keyEquivalent: ""))
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Settings...", action: #selector(openSettings), keyEquivalent: ","))
         menu.addItem(NSMenuItem(title: "View History...", action: #selector(showTranscriptionHistory), keyEquivalent: "h"))
@@ -43,8 +43,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
         statusItem.menu = menu
         
         // Set default keyboard shortcuts
-        KeyboardShortcuts.setShortcut(.init(.z, modifiers: [.shift, .option]), for: .startRecording)
-        KeyboardShortcuts.setShortcut(.init(.a, modifiers: [.shift, .option]), for: .showHistory)
+        KeyboardShortcuts.setShortcut(.init(.z, modifiers: [.command, .option]), for: .startRecording)
+        KeyboardShortcuts.setShortcut(.init(.a, modifiers: [.command, .option]), for: .showHistory)
         
         // Set up keyboard shortcut handlers
         KeyboardShortcuts.onKeyUp(for: .startRecording) { [weak self] in
@@ -253,17 +253,17 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
     
     func showHistoryForPasteFailure() {
         // When paste fails in certain apps, show the history window
-        // by simulating the Shift+Alt+A keyboard shortcut
+        // by simulating the Command+Option+A keyboard shortcut
         let source = CGEventSource(stateID: .hidSystemState)
         
         // Key code for 'A' is 0x00
         if let keyDown = CGEvent(keyboardEventSource: source, virtualKey: 0x00, keyDown: true) {
-            keyDown.flags = [.maskShift, .maskAlternate]
+            keyDown.flags = [.maskCommand, .maskAlternate]
             keyDown.post(tap: .cghidEventTap)
         }
         
         if let keyUp = CGEvent(keyboardEventSource: source, virtualKey: 0x00, keyDown: false) {
-            keyUp.flags = [.maskShift, .maskAlternate]
+            keyUp.flags = [.maskCommand, .maskAlternate]
             keyUp.post(tap: .cghidEventTap)
         }
         

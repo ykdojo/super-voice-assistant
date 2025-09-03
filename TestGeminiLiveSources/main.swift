@@ -85,7 +85,9 @@ struct GeminiLiveTest {
             let setupResponse = try await webSocketTask.receive()
             print("📥 Setup confirmed")
             
-            // Send text for TTS
+            // Send text for TTS with direct instruction
+            let placeholderText = "This is a placeholder text that should be read out loud by the AI voice assistant."
+            
             let textMessage = """
             {
                 "client_content": {
@@ -94,7 +96,7 @@ struct GeminiLiveTest {
                             "role": "user",
                             "parts": [
                                 {
-                                    "text": "Hello! This is a test of Gemini's text-to-speech capability."
+                                    "text": "Read out loud the following text with nothing before or after: \(placeholderText)"
                                 }
                             ]
                         }
@@ -105,47 +107,62 @@ struct GeminiLiveTest {
             """
             
             try await webSocketTask.send(.string(textMessage))
-            print("📤 Text sent for speech synthesis")
+            print("📤 Instruction sent: '\(placeholderText)'")
             
-            // Collect audio data
+            // Collect audio data until complete
             var audioData = Data()
-            var responseCount = 0
-            let maxResponses = 10
+            var isComplete = false
             
-            while responseCount < maxResponses {
+            while !isComplete {
                 let message = try await webSocketTask.receive()
-                responseCount += 1
                 
                 switch message {
                 case .string(let text):
-                    if text.contains("\"done\":true") || text.contains("turn_complete") {
-                        break
+                    print("📥 Response: \(text)")
+                    if text.contains("\"done\":true") || text.contains("turn_complete") || text.contains("\"turnComplete\":true") {
+                        print("🏁 Audio stream complete")
+                        isComplete = true
                     }
                 case .data(let data):
                     // Parse JSON to extract base64 audio
                     do {
-                        if let jsonObject = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                           let serverContent = jsonObject["serverContent"] as? [String: Any],
-                           let modelTurn = serverContent["modelTurn"] as? [String: Any],
-                           let parts = modelTurn["parts"] as? [[String: Any]] {
+                        if let jsonObject = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
                             
-                            for part in parts {
-                                if let inlineData = part["inlineData"] as? [String: Any],
-                                   let mimeType = inlineData["mimeType"] as? String,
-                                   mimeType.starts(with: "audio/pcm"),
-                                   let base64Data = inlineData["data"] as? String,
-                                   let actualAudioData = Data(base64Encoded: base64Data) {
-                                    
-                                    audioData.append(actualAudioData)
+                            // Check for completion in JSON response
+                            if let serverContent = jsonObject["serverContent"] as? [String: Any],
+                               let turnComplete = serverContent["turnComplete"] as? Bool,
+                               turnComplete {
+                                print("🏁 Turn complete received")
+                                isComplete = true
+                                break
+                            }
+                            
+                            // Extract audio data
+                            if let serverContent = jsonObject["serverContent"] as? [String: Any],
+                               let modelTurn = serverContent["modelTurn"] as? [String: Any],
+                               let parts = modelTurn["parts"] as? [[String: Any]] {
+                                
+                                for part in parts {
+                                    if let inlineData = part["inlineData"] as? [String: Any],
+                                       let mimeType = inlineData["mimeType"] as? String,
+                                       mimeType.starts(with: "audio/pcm"),
+                                       let base64Data = inlineData["data"] as? String,
+                                       let actualAudioData = Data(base64Encoded: base64Data) {
+                                        
+                                        audioData.append(actualAudioData)
+                                        print("🎵 Audio chunk: \(actualAudioData.count) bytes (total: \(audioData.count))")
+                                    }
                                 }
                             }
                         }
-                    } catch { }
+                    } catch {
+                        print("⚠️ JSON parsing error: \(error)")
+                    }
                 @unknown default:
                     break
                 }
                 
-                try await Task.sleep(nanoseconds: 50_000_000)
+                try await Task.sleep(nanoseconds: 10_000_000) // 10ms - faster polling
             }
             
             if !audioData.isEmpty {

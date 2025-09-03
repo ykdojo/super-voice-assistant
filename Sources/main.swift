@@ -6,6 +6,31 @@ import WhisperKit
 import SharedModels
 import Combine
 import ApplicationServices
+import Foundation
+
+// Environment variable loading
+func loadEnvironmentVariables() {
+    let fileManager = FileManager.default
+    let currentDirectory = fileManager.currentDirectoryPath
+    let envPath = "\(currentDirectory)/.env"
+    
+    guard fileManager.fileExists(atPath: envPath),
+          let envContent = try? String(contentsOfFile: envPath) else {
+        return
+    }
+    
+    for line in envContent.components(separatedBy: .newlines) {
+        let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedLine.isEmpty && !trimmedLine.hasPrefix("#") else { continue }
+        
+        let parts = trimmedLine.components(separatedBy: "=")
+        guard parts.count == 2 else { continue }
+        
+        let key = parts[0].trimmingCharacters(in: .whitespacesAndNewlines)
+        let value = parts[1].trimmingCharacters(in: .whitespacesAndNewlines)
+        setenv(key, value, 1)
+    }
+}
 
 extension KeyboardShortcuts.Name {
     static let startRecording = Self("startRecording")
@@ -22,8 +47,24 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
     private var modelCancellable: AnyCancellable?
     private var transcriptionTimer: Timer?
     private var audioManager: AudioTranscriptionManager!
+    private var geminiTTS: GeminiTTS?
     
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Load environment variables
+        loadEnvironmentVariables()
+        
+        // Initialize GeminiTTS if API key is available
+        if let apiKey = ProcessInfo.processInfo.environment["GEMINI_API_KEY"], !apiKey.isEmpty {
+            if #available(macOS 14.0, *) {
+                geminiTTS = GeminiTTS(apiKey: apiKey)
+                print("✅ GeminiTTS initialized")
+            } else {
+                print("⚠️ GeminiTTS requires macOS 14.0 or later")
+            }
+        } else {
+            print("⚠️ GEMINI_API_KEY not found in environment variables")
+        }
+        
         // Create the status bar item
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         
@@ -131,15 +172,54 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
             if selectedTextResult == .success, let selectedText = selectedTextValue as? String, !selectedText.isEmpty {
                 print("📖 Selected text (via Accessibility): \(selectedText)")
                 
-                // Put the selected text in clipboard for verification
-                let pasteboard = NSPasteboard.general
-                pasteboard.clearContents()
-                pasteboard.setString(selectedText, forType: .string)
-                
-                let notification = NSUserNotification()
-                notification.title = "Selected Text Copied"
-                notification.informativeText = "Text copied to clipboard: \(selectedText.prefix(100))\(selectedText.count > 100 ? "..." : "")"
-                NSUserNotificationCenter.default.deliver(notification)
+                // Try to synthesize speech with GeminiTTS
+                if let geminiTTS = geminiTTS {
+                    Task {
+                        do {
+                            let notification = NSUserNotification()
+                            notification.title = "Reading Text"
+                            notification.informativeText = "Starting speech synthesis: \(selectedText.prefix(50))\(selectedText.count > 50 ? "..." : "")"
+                            NSUserNotificationCenter.default.deliver(notification)
+                            
+                            try await geminiTTS.synthesizeSpeech(selectedText)
+                            
+                            let completionNotification = NSUserNotification()
+                            completionNotification.title = "Text Reading Complete"
+                            completionNotification.informativeText = "Finished reading selected text"
+                            NSUserNotificationCenter.default.deliver(completionNotification)
+                            
+                        } catch {
+                            print("❌ TTS Error: \(error)")
+                            
+                            let errorNotification = NSUserNotification()
+                            errorNotification.title = "TTS Error"
+                            errorNotification.informativeText = "Failed to read text: \(error.localizedDescription)"
+                            NSUserNotificationCenter.default.deliver(errorNotification)
+                            
+                            // Fallback: put text in clipboard
+                            DispatchQueue.main.async {
+                                let pasteboard = NSPasteboard.general
+                                pasteboard.clearContents()
+                                pasteboard.setString(selectedText, forType: .string)
+                                
+                                let fallbackNotification = NSUserNotification()
+                                fallbackNotification.title = "Text Copied to Clipboard"
+                                fallbackNotification.informativeText = "Speech failed, text copied instead"
+                                NSUserNotificationCenter.default.deliver(fallbackNotification)
+                            }
+                        }
+                    }
+                } else {
+                    // Fallback: put the selected text in clipboard
+                    let pasteboard = NSPasteboard.general
+                    pasteboard.clearContents()
+                    pasteboard.setString(selectedText, forType: .string)
+                    
+                    let notification = NSUserNotification()
+                    notification.title = "Selected Text Copied"
+                    notification.informativeText = "TTS not available, text copied to clipboard: \(selectedText.prefix(100))\(selectedText.count > 100 ? "..." : "")"
+                    NSUserNotificationCenter.default.deliver(notification)
+                }
             } else {
                 print("⚠️ No text selected or accessibility API failed")
                 

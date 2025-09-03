@@ -43,13 +43,21 @@ struct GeminiLiveTest {
         let webSocketTask = session.webSocketTask(with: url)
         webSocketTask.resume()
         
-        // Setup audio engine
+        // Setup audio engine with speed control
         let audioEngine = AVAudioEngine()
         let playerNode = AVAudioPlayerNode()
+        let timePitchEffect = AVAudioUnitTimePitch()
         let audioFormat = AVAudioFormat(standardFormatWithSampleRate: 24000, channels: 1)!
         
+        // Speed control: 0.5 = half speed, 1.0 = normal, 2.0 = double speed
+        let playbackSpeed: Float = 1.15 // 15% faster
+        timePitchEffect.rate = playbackSpeed
+        timePitchEffect.pitch = 0 // Keep pitch unchanged
+        
         audioEngine.attach(playerNode)
-        audioEngine.connect(playerNode, to: audioEngine.mainMixerNode, format: audioFormat)
+        audioEngine.attach(timePitchEffect)
+        audioEngine.connect(playerNode, to: timePitchEffect, format: audioFormat)
+        audioEngine.connect(timePitchEffect, to: audioEngine.mainMixerNode, format: audioFormat)
         
         do {
             try audioEngine.start()
@@ -85,7 +93,7 @@ struct GeminiLiveTest {
             let setupResponse = try await webSocketTask.receive()
             print("📥 Setup confirmed")
             
-            // Send text for TTS with direct instruction
+            // Send text for TTS
             let placeholderText = "This is a placeholder text that should be read out loud by the AI voice assistant."
             
             let textMessage = """
@@ -107,7 +115,7 @@ struct GeminiLiveTest {
             """
             
             try await webSocketTask.send(.string(textMessage))
-            print("📤 Instruction sent: '\(placeholderText)'")
+            print("📤 Text sent for speech synthesis (\(playbackSpeed)x speed)")
             
             // Collect audio data until complete
             var audioData = Data()

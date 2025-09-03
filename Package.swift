@@ -87,7 +87,7 @@ let package = Package(
             path: "TestLiveTranscriptionSources"),
         .executableTarget(
             name: "TestGeminiLive",
-            dependencies: [],
+            dependencies: ["SharedModels"],
             path: "TestGeminiLiveSources")
     ]
 )

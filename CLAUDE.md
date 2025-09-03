@@ -17,3 +17,23 @@
 - Never include Claude attribution or Co-Author information in git commits
 - Keep commit messages clean and professional without AI-related references
 
+## Documentation in Progress
+
+### Gemini Live TTS Integration
+
+**Status**: Initial connection test ✅ complete  
+**Branch**: `gemini-text-to-speech`  
+**Key Files**:
+- `GEMINI_TTS_PLAN.md` - Technical specifications and implementation roadmap
+- `TestGeminiLiveSources/main.swift` - Minimal WebSocket connection test
+- `.env.example` - API key configuration template
+
+**Progress**:
+- ✅ API research and technical planning completed
+- ✅ Swift WebSocket connection test implemented and verified
+- ✅ Automatic .env file loading for secure API key management
+- ✅ Successful connection to Gemini Live API with Aoede voice config
+- 🔄 Next: Implement audio recording/playback pipeline
+
+**Test Command**: `swift run TestGeminiLive`
+

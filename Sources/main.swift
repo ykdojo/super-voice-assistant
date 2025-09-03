@@ -5,10 +5,12 @@ import AVFoundation
 import WhisperKit
 import SharedModels
 import Combine
+import ApplicationServices
 
 extension KeyboardShortcuts.Name {
     static let startRecording = Self("startRecording")
     static let showHistory = Self("showHistory")
+    static let readSelectedText = Self("readSelectedText")
 }
 
 class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDelegate {
@@ -34,6 +36,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
         let menu = NSMenu()
         menu.addItem(NSMenuItem(title: "Recording: Press Command+Option+Z", action: nil, keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "History: Press Command+Option+A", action: nil, keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "Read Selected Text: Press Command+Option+S", action: nil, keyEquivalent: ""))
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Settings...", action: #selector(openSettings), keyEquivalent: ","))
         menu.addItem(NSMenuItem(title: "View History...", action: #selector(showTranscriptionHistory), keyEquivalent: "h"))
@@ -45,6 +48,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
         // Set default keyboard shortcuts
         KeyboardShortcuts.setShortcut(.init(.z, modifiers: [.command, .option]), for: .startRecording)
         KeyboardShortcuts.setShortcut(.init(.a, modifiers: [.command, .option]), for: .showHistory)
+        KeyboardShortcuts.setShortcut(.init(.s, modifiers: [.command, .option]), for: .readSelectedText)
         
         // Set up keyboard shortcut handlers
         KeyboardShortcuts.onKeyUp(for: .startRecording) { [weak self] in
@@ -53,6 +57,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
         
         KeyboardShortcuts.onKeyUp(for: .showHistory) { [weak self] in
             self?.showTranscriptionHistory()
+        }
+        
+        KeyboardShortcuts.onKeyUp(for: .readSelectedText) { [weak self] in
+            self?.readSelectedText()
         }
         
         // Set up audio manager
@@ -103,6 +111,51 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
             unifiedWindow = UnifiedManagerWindow()
         }
         unifiedWindow?.showWindow(tab: .statistics)
+    }
+    
+    func readSelectedText() {
+        // Use Accessibility API to get selected text directly
+        let systemWideElement = AXUIElementCreateSystemWide()
+        var focusedElement: CFTypeRef?
+        
+        // Get the currently focused UI element
+        let result = AXUIElementCopyAttributeValue(systemWideElement, kAXFocusedUIElementAttribute as CFString, &focusedElement)
+        
+        if result == .success, let element = focusedElement {
+            let axElement = element as! AXUIElement
+            var selectedTextValue: CFTypeRef?
+            
+            // Try to get selected text
+            let selectedTextResult = AXUIElementCopyAttributeValue(axElement, kAXSelectedTextAttribute as CFString, &selectedTextValue)
+            
+            if selectedTextResult == .success, let selectedText = selectedTextValue as? String, !selectedText.isEmpty {
+                print("📖 Selected text (via Accessibility): \(selectedText)")
+                
+                // Put the selected text in clipboard for verification
+                let pasteboard = NSPasteboard.general
+                pasteboard.clearContents()
+                pasteboard.setString(selectedText, forType: .string)
+                
+                let notification = NSUserNotification()
+                notification.title = "Selected Text Copied"
+                notification.informativeText = "Text copied to clipboard: \(selectedText.prefix(100))\(selectedText.count > 100 ? "..." : "")"
+                NSUserNotificationCenter.default.deliver(notification)
+            } else {
+                print("⚠️ No text selected or accessibility API failed")
+                
+                let notification = NSUserNotification()
+                notification.title = "No Text Selected"
+                notification.informativeText = "Please select some text first or app doesn't support accessibility"
+                NSUserNotificationCenter.default.deliver(notification)
+            }
+        } else {
+            print("⚠️ Could not get focused UI element")
+            
+            let notification = NSUserNotification()
+            notification.title = "No Focused Element"
+            notification.informativeText = "Could not access the current application"
+            NSUserNotificationCenter.default.deliver(notification)
+        }
     }
     
 

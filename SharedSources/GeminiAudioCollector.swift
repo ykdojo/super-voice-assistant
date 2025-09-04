@@ -67,7 +67,7 @@ public class GeminiAudioCollector {
                             "role": "user",
                             "parts": [
                                 {
-                                    "text": "Read out loud the following text with nothing before or after: \(text)"
+                                    "text": "You must only speak the exact text provided. Do not add any introduction, explanation, commentary, or conclusion. Do not ask questions. Do not say anything before or after the text. Only speak these exact words: \(text)"
                                 }
                             ]
                         }

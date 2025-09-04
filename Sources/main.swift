@@ -183,9 +183,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
                             notification.informativeText = "Starting streaming synthesis: \(selectedText.prefix(50))\(selectedText.count > 50 ? "..." : "")"
                             NSUserNotificationCenter.default.deliver(notification)
                             
-                            // Stream audio chunks and play immediately
-                            let audioStream = audioCollector.collectAudioChunks(from: selectedText)
-                            try await streamingPlayer.playAudioStream(audioStream)
+                            // Stream audio with sentence pauses
+                            try await streamingPlayer.playTextWithSentencePauses(selectedText, audioCollector: audioCollector, pauseDurationMs: 500)
                             
                             let completionNotification = NSUserNotification()
                             completionNotification.title = "Streaming TTS Complete"

@@ -39,6 +39,9 @@ let package = Package(
         .executable(
             name: "TestStreamingTTS",
             targets: ["TestStreamingTTS"]),
+        .executable(
+            name: "TestSentenceSplitter",
+            targets: ["TestSentenceSplitter"]),
         .library(
             name: "SharedModels",
             targets: ["SharedModels"])
@@ -95,6 +98,10 @@ let package = Package(
         .executableTarget(
             name: "TestStreamingTTS",
             dependencies: ["SharedModels"],
-            path: "TestStreamingTTSSources")
+            path: "TestStreamingTTSSources"),
+        .executableTarget(
+            name: "TestSentenceSplitter",
+            dependencies: ["SharedModels"],
+            path: "TestSentenceSplitterSources")
     ]
 )

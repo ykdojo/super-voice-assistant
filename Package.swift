@@ -37,9 +37,6 @@ let package = Package(
             name: "TestGeminiLive",
             targets: ["TestGeminiLive"]),
         .executable(
-            name: "TestAudioCollector",
-            targets: ["TestAudioCollector"]),
-        .executable(
             name: "TestStreamingTTS",
             targets: ["TestStreamingTTS"]),
         .library(
@@ -95,10 +92,6 @@ let package = Package(
             name: "TestGeminiLive",
             dependencies: ["SharedModels"],
             path: "TestGeminiLiveSources"),
-        .executableTarget(
-            name: "TestAudioCollector",
-            dependencies: ["SharedModels"],
-            path: "TestAudioCollectorSources"),
         .executableTarget(
             name: "TestStreamingTTS",
             dependencies: ["SharedModels"],

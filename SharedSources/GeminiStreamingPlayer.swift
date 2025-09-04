@@ -75,42 +75,64 @@ public class GeminiStreamingPlayer {
         }
     }
     
-    public func playTextWithSentencePauses(_ text: String, audioCollector: GeminiAudioCollector, pauseDurationMs: Int = 500) async throws {
+    public func playTextWithSentencePauses(_ text: String, audioCollector: GeminiAudioCollector, pauseDurationMs: Int = 100) async throws {
         try startAudioEngine()
         
         // Split text into sentences
         let sentences = SmartSentenceSplitter.splitIntoSentences(text)
         print("📖 Split text into \(sentences.count) sentences")
         
-        for (index, sentence) in sentences.enumerated() {
-            print("🔊 Playing sentence \(index + 1)/\(sentences.count): \(sentence)")
+        // Use concurrent processing with max 3 sessions (Gemini API limit)
+        let maxConcurrentSessions = 3
+        var sentenceIndex = 0
+        var audioStreams: [Int: AsyncThrowingStream<Data, Error>] = [:]
+        var completedAudio: [Int: [Data]] = [:]
+        
+        // Start initial batch of concurrent audio collections
+        for i in 0..<min(maxConcurrentSessions, sentences.count) {
+            print("🚀 Starting concurrent collection for sentence \(i + 1)")
+            audioStreams[i] = audioCollector.collectAudioChunks(from: sentences[i])
+            completedAudio[i] = []
+        }
+        
+        var nextSentenceToStart = maxConcurrentSessions
+        var isFirstChunk = true
+        
+        // Play sentences in order, collecting audio concurrently
+        for (index, _) in sentences.enumerated() {
+            print("🔊 Playing sentence \(index + 1)/\(sentences.count)")
             
-            // Get audio stream for this sentence
-            let audioStream = audioCollector.collectAudioChunks(from: sentence)
+            guard let audioStream = audioStreams[index] else {
+                continue
+            }
             
-            var isFirstChunk = true
             var sentenceBytesPlayed = 0
             
-            // Play this sentence
+            // Play this sentence's audio chunks as they arrive
             for try await audioChunk in audioStream {
-                // Convert raw PCM data to AVAudioPCMBuffer
                 let buffer = try createPCMBuffer(from: audioChunk)
                 
-                if isFirstChunk && index == 0 {
+                if isFirstChunk {
                     print("▶️ Starting playback")
                     playerNode.play()
                     isFirstChunk = false
                 }
                 
-                // Schedule buffer for immediate playback
                 playerNode.scheduleBuffer(buffer, completionHandler: nil)
                 sentenceBytesPlayed += audioChunk.count
                 
-                // Small delay to prevent overwhelming the audio system
                 try await Task.sleep(nanoseconds: 1_000_000) // 1ms
             }
             
             print("✅ Sentence \(index + 1) complete: \(sentenceBytesPlayed) bytes")
+            
+            // Start next sentence collection if available
+            if nextSentenceToStart < sentences.count {
+                print("🚀 Starting concurrent collection for sentence \(nextSentenceToStart + 1)")
+                audioStreams[nextSentenceToStart] = audioCollector.collectAudioChunks(from: sentences[nextSentenceToStart])
+                completedAudio[nextSentenceToStart] = []
+                nextSentenceToStart += 1
+            }
             
             // Add pause between sentences (except after the last sentence)
             if index < sentences.count - 1 {
@@ -119,7 +141,7 @@ public class GeminiStreamingPlayer {
             }
         }
         
-        print("🎉 All sentences completed with pauses")
+        print("🎉 All sentences completed with concurrent processing")
     }
     
     private func addSentencePause(pauseDurationMs: Int) async throws {

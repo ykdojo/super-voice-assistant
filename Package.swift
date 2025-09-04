@@ -34,9 +34,6 @@ let package = Package(
             name: "TestLiveTranscription",
             targets: ["TestLiveTranscription"]),
         .executable(
-            name: "TestGeminiLive",
-            targets: ["TestGeminiLive"]),
-        .executable(
             name: "TestAudioCollector",
             targets: ["TestAudioCollector"]),
         .executable(
@@ -91,10 +88,6 @@ let package = Package(
             name: "TestLiveTranscription",
             dependencies: ["WhisperKit", "SharedModels"],
             path: "TestLiveTranscriptionSources"),
-        .executableTarget(
-            name: "TestGeminiLive",
-            dependencies: ["SharedModels"],
-            path: "TestGeminiLiveSources"),
         .executableTarget(
             name: "TestAudioCollector",
             dependencies: ["SharedModels"],

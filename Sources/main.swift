@@ -36,7 +36,6 @@ extension KeyboardShortcuts.Name {
     static let startRecording = Self("startRecording")
     static let showHistory = Self("showHistory")
     static let readSelectedText = Self("readSelectedText")
-    static let streamSelectedText = Self("streamSelectedText")
 }
 
 class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDelegate {
@@ -48,7 +47,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
     private var modelCancellable: AnyCancellable?
     private var transcriptionTimer: Timer?
     private var audioManager: AudioTranscriptionManager!
-    private var geminiTTS: GeminiTTS?
     private var streamingPlayer: GeminiStreamingPlayer?
     private var audioCollector: GeminiAudioCollector?
     
@@ -56,15 +54,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
         // Load environment variables
         loadEnvironmentVariables()
         
-        // Initialize GeminiTTS and streaming components if API key is available
+        // Initialize streaming TTS components if API key is available
         if let apiKey = ProcessInfo.processInfo.environment["GEMINI_API_KEY"], !apiKey.isEmpty {
             if #available(macOS 14.0, *) {
-                geminiTTS = GeminiTTS(apiKey: apiKey)
                 streamingPlayer = GeminiStreamingPlayer(playbackSpeed: 1.15)
                 audioCollector = GeminiAudioCollector(apiKey: apiKey)
-                print("✅ GeminiTTS and streaming components initialized")
+                print("✅ Streaming TTS components initialized")
             } else {
-                print("⚠️ GeminiTTS requires macOS 14.0 or later")
+                print("⚠️ Streaming TTS requires macOS 14.0 or later")
             }
         } else {
             print("⚠️ GEMINI_API_KEY not found in environment variables")
@@ -83,7 +80,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
         menu.addItem(NSMenuItem(title: "Recording: Press Command+Option+Z", action: nil, keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "History: Press Command+Option+A", action: nil, keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "Read Selected Text: Press Command+Option+S", action: nil, keyEquivalent: ""))
-        menu.addItem(NSMenuItem(title: "Stream Selected Text: Press Command+Option+D", action: nil, keyEquivalent: ""))
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Settings...", action: #selector(openSettings), keyEquivalent: ","))
         menu.addItem(NSMenuItem(title: "View History...", action: #selector(showTranscriptionHistory), keyEquivalent: "h"))
@@ -96,7 +92,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
         KeyboardShortcuts.setShortcut(.init(.z, modifiers: [.command, .option]), for: .startRecording)
         KeyboardShortcuts.setShortcut(.init(.a, modifiers: [.command, .option]), for: .showHistory)
         KeyboardShortcuts.setShortcut(.init(.s, modifiers: [.command, .option]), for: .readSelectedText)
-        KeyboardShortcuts.setShortcut(.init(.d, modifiers: [.command, .option]), for: .streamSelectedText)
         
         // Set up keyboard shortcut handlers
         KeyboardShortcuts.onKeyUp(for: .startRecording) { [weak self] in
@@ -109,10 +104,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
         
         KeyboardShortcuts.onKeyUp(for: .readSelectedText) { [weak self] in
             self?.readSelectedText()
-        }
-        
-        KeyboardShortcuts.onKeyUp(for: .streamSelectedText) { [weak self] in
-            self?.streamSelectedText()
         }
         
         // Set up audio manager
@@ -181,90 +172,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
             let selectedTextResult = AXUIElementCopyAttributeValue(axElement, kAXSelectedTextAttribute as CFString, &selectedTextValue)
             
             if selectedTextResult == .success, let selectedText = selectedTextValue as? String, !selectedText.isEmpty {
-                print("📖 Selected text (via Accessibility): \(selectedText)")
-                
-                // Try to synthesize speech with GeminiTTS
-                if let geminiTTS = geminiTTS {
-                    Task {
-                        do {
-                            let notification = NSUserNotification()
-                            notification.title = "Reading Text"
-                            notification.informativeText = "Starting speech synthesis: \(selectedText.prefix(50))\(selectedText.count > 50 ? "..." : "")"
-                            NSUserNotificationCenter.default.deliver(notification)
-                            
-                            try await geminiTTS.synthesizeSpeech(selectedText)
-                            
-                            let completionNotification = NSUserNotification()
-                            completionNotification.title = "Text Reading Complete"
-                            completionNotification.informativeText = "Finished reading selected text"
-                            NSUserNotificationCenter.default.deliver(completionNotification)
-                            
-                        } catch {
-                            print("❌ TTS Error: \(error)")
-                            
-                            let errorNotification = NSUserNotification()
-                            errorNotification.title = "TTS Error"
-                            errorNotification.informativeText = "Failed to read text: \(error.localizedDescription)"
-                            NSUserNotificationCenter.default.deliver(errorNotification)
-                            
-                            // Fallback: put text in clipboard
-                            DispatchQueue.main.async {
-                                let pasteboard = NSPasteboard.general
-                                pasteboard.clearContents()
-                                pasteboard.setString(selectedText, forType: .string)
-                                
-                                let fallbackNotification = NSUserNotification()
-                                fallbackNotification.title = "Text Copied to Clipboard"
-                                fallbackNotification.informativeText = "Speech failed, text copied instead"
-                                NSUserNotificationCenter.default.deliver(fallbackNotification)
-                            }
-                        }
-                    }
-                } else {
-                    // Fallback: put the selected text in clipboard
-                    let pasteboard = NSPasteboard.general
-                    pasteboard.clearContents()
-                    pasteboard.setString(selectedText, forType: .string)
-                    
-                    let notification = NSUserNotification()
-                    notification.title = "Selected Text Copied"
-                    notification.informativeText = "TTS not available, text copied to clipboard: \(selectedText.prefix(100))\(selectedText.count > 100 ? "..." : "")"
-                    NSUserNotificationCenter.default.deliver(notification)
-                }
-            } else {
-                print("⚠️ No text selected or accessibility API failed")
-                
-                let notification = NSUserNotification()
-                notification.title = "No Text Selected"
-                notification.informativeText = "Please select some text first or app doesn't support accessibility"
-                NSUserNotificationCenter.default.deliver(notification)
-            }
-        } else {
-            print("⚠️ Could not get focused UI element")
-            
-            let notification = NSUserNotification()
-            notification.title = "No Focused Element"
-            notification.informativeText = "Could not access the current application"
-            NSUserNotificationCenter.default.deliver(notification)
-        }
-    }
-    
-    func streamSelectedText() {
-        // Use Accessibility API to get selected text directly
-        let systemWideElement = AXUIElementCreateSystemWide()
-        var focusedElement: CFTypeRef?
-        
-        // Get the currently focused UI element
-        let result = AXUIElementCopyAttributeValue(systemWideElement, kAXFocusedUIElementAttribute as CFString, &focusedElement)
-        
-        if result == .success, let element = focusedElement {
-            let axElement = element as! AXUIElement
-            var selectedTextValue: CFTypeRef?
-            
-            // Try to get selected text
-            let selectedTextResult = AXUIElementCopyAttributeValue(axElement, kAXSelectedTextAttribute as CFString, &selectedTextValue)
-            
-            if selectedTextResult == .success, let selectedText = selectedTextValue as? String, !selectedText.isEmpty {
                 print("📖 Selected text for streaming TTS: \(selectedText)")
                 
                 // Try to stream speech with our streaming components
@@ -292,45 +199,30 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
                             errorNotification.title = "Streaming TTS Error"
                             errorNotification.informativeText = "Failed to stream text: \(error.localizedDescription)"
                             NSUserNotificationCenter.default.deliver(errorNotification)
+                            
+                            // Fallback: put text in clipboard
+                            DispatchQueue.main.async {
+                                let pasteboard = NSPasteboard.general
+                                pasteboard.clearContents()
+                                pasteboard.setString(selectedText, forType: .string)
+                                
+                                let fallbackNotification = NSUserNotification()
+                                fallbackNotification.title = "Text Copied to Clipboard"
+                                fallbackNotification.informativeText = "Streaming failed, text copied instead"
+                                NSUserNotificationCenter.default.deliver(fallbackNotification)
+                            }
                         }
                     }
                 } else {
-                    // Fallback: use regular TTS if streaming not available
-                    if let geminiTTS = geminiTTS {
-                        Task {
-                            do {
-                                let notification = NSUserNotification()
-                                notification.title = "Reading Text (Fallback)"
-                                notification.informativeText = "Streaming not available, using regular TTS: \(selectedText.prefix(50))\(selectedText.count > 50 ? "..." : "")"
-                                NSUserNotificationCenter.default.deliver(notification)
-                                
-                                try await geminiTTS.synthesizeSpeech(selectedText)
-                                
-                                let completionNotification = NSUserNotification()
-                                completionNotification.title = "Text Reading Complete"
-                                completionNotification.informativeText = "Finished reading selected text"
-                                NSUserNotificationCenter.default.deliver(completionNotification)
-                                
-                            } catch {
-                                print("❌ TTS Error: \(error)")
-                                
-                                let errorNotification = NSUserNotification()
-                                errorNotification.title = "TTS Error"
-                                errorNotification.informativeText = "Failed to read text: \(error.localizedDescription)"
-                                NSUserNotificationCenter.default.deliver(errorNotification)
-                            }
-                        }
-                    } else {
-                        // No TTS available at all
-                        let pasteboard = NSPasteboard.general
-                        pasteboard.clearContents()
-                        pasteboard.setString(selectedText, forType: .string)
-                        
-                        let notification = NSUserNotification()
-                        notification.title = "Selected Text Copied"
-                        notification.informativeText = "TTS not available, text copied to clipboard: \(selectedText.prefix(100))\(selectedText.count > 100 ? "..." : "")"
-                        NSUserNotificationCenter.default.deliver(notification)
-                    }
+                    // Fallback: put the selected text in clipboard
+                    let pasteboard = NSPasteboard.general
+                    pasteboard.clearContents()
+                    pasteboard.setString(selectedText, forType: .string)
+                    
+                    let notification = NSUserNotification()
+                    notification.title = "Selected Text Copied"
+                    notification.informativeText = "Streaming TTS not available, text copied to clipboard: \(selectedText.prefix(100))\(selectedText.count > 100 ? "..." : "")"
+                    NSUserNotificationCenter.default.deliver(notification)
                 }
             } else {
                 print("⚠️ No text selected or accessibility API failed")

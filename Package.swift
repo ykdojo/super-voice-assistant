@@ -39,6 +39,9 @@ let package = Package(
         .executable(
             name: "TestAudioCollector",
             targets: ["TestAudioCollector"]),
+        .executable(
+            name: "TestStreamingTTS",
+            targets: ["TestStreamingTTS"]),
         .library(
             name: "SharedModels",
             targets: ["SharedModels"])
@@ -95,6 +98,10 @@ let package = Package(
         .executableTarget(
             name: "TestAudioCollector",
             dependencies: ["SharedModels"],
-            path: "TestAudioCollectorSources")
+            path: "TestAudioCollectorSources"),
+        .executableTarget(
+            name: "TestStreamingTTS",
+            dependencies: ["SharedModels"],
+            path: "TestStreamingTTSSources")
     ]
 )

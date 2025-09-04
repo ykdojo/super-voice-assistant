@@ -184,7 +184,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
                             NSUserNotificationCenter.default.deliver(notification)
                             
                             // Stream audio with sentence pauses
-                            try await streamingPlayer.playTextWithSentencePauses(selectedText, audioCollector: audioCollector, pauseDurationMs: 500)
+                            try await streamingPlayer.playTextWithSentencePauses(selectedText, audioCollector: audioCollector, pauseDurationMs: 300)
                             
                             let completionNotification = NSUserNotification()
                             completionNotification.title = "Streaming TTS Complete"

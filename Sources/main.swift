@@ -157,34 +157,51 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
     }
     
     func readSelectedText() {
-        // Use Accessibility API to get selected text directly
-        let systemWideElement = AXUIElementCreateSystemWide()
-        var focusedElement: CFTypeRef?
+        // Save current clipboard contents first
+        let pasteboard = NSPasteboard.general
+        let savedTypes = pasteboard.types ?? []
+        var savedItems: [NSPasteboard.PasteboardType: Data] = [:]
         
-        // Get the currently focused UI element
-        let result = AXUIElementCopyAttributeValue(systemWideElement, kAXFocusedUIElementAttribute as CFString, &focusedElement)
+        for type in savedTypes {
+            if let data = pasteboard.data(forType: type) {
+                savedItems[type] = data
+            }
+        }
         
-        if result == .success, let element = focusedElement {
-            let axElement = element as! AXUIElement
-            var selectedTextValue: CFTypeRef?
+        print("📋 Saved \(savedItems.count) clipboard types before reading selection")
+        
+        // Simulate Cmd+C to copy selected text
+        let source = CGEventSource(stateID: .hidSystemState)
+        let keyDownC = CGEvent(keyboardEventSource: source, virtualKey: 0x08, keyDown: true) // 'c' key
+        let keyUpC = CGEvent(keyboardEventSource: source, virtualKey: 0x08, keyDown: false)
+        
+        // Set Cmd modifier
+        keyDownC?.flags = .maskCommand
+        keyUpC?.flags = .maskCommand
+        
+        // Post the events
+        keyDownC?.post(tap: .cghidEventTap)
+        keyUpC?.post(tap: .cghidEventTap)
+        
+        // Give system a moment to process the copy command
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+            // Read from clipboard
+            let copiedText = pasteboard.string(forType: .string) ?? ""
             
-            // Try to get selected text
-            let selectedTextResult = AXUIElementCopyAttributeValue(axElement, kAXSelectedTextAttribute as CFString, &selectedTextValue)
-            
-            if selectedTextResult == .success, let selectedText = selectedTextValue as? String, !selectedText.isEmpty {
-                print("📖 Selected text for streaming TTS: \(selectedText)")
+            if !copiedText.isEmpty {
+                print("📖 Selected text for streaming TTS: \(copiedText)")
                 
                 // Try to stream speech with our streaming components
-                if let audioCollector = audioCollector, let streamingPlayer = streamingPlayer {
+                if let audioCollector = self?.audioCollector, let streamingPlayer = self?.streamingPlayer {
                     Task {
                         do {
                             let notification = NSUserNotification()
                             notification.title = "Streaming TTS"
-                            notification.informativeText = "Starting streaming synthesis: \(selectedText.prefix(50))\(selectedText.count > 50 ? "..." : "")"
+                            notification.informativeText = "Starting streaming synthesis: \(copiedText.prefix(50))\(copiedText.count > 50 ? "..." : "")"
                             NSUserNotificationCenter.default.deliver(notification)
                             
                             // Stream audio using single API call with model-instructed pauses
-                            let audioStream = audioCollector.collectAudioChunks(from: selectedText)
+                            let audioStream = audioCollector.collectAudioChunks(from: copiedText)
                             try await streamingPlayer.playAudioStream(audioStream)
                             
                             let completionNotification = NSUserNotification()
@@ -200,45 +217,45 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
                             errorNotification.informativeText = "Failed to stream text: \(error.localizedDescription)"
                             NSUserNotificationCenter.default.deliver(errorNotification)
                             
-                            // Fallback: put text in clipboard
-                            DispatchQueue.main.async {
-                                let pasteboard = NSPasteboard.general
-                                pasteboard.clearContents()
-                                pasteboard.setString(selectedText, forType: .string)
-                                
-                                let fallbackNotification = NSUserNotification()
-                                fallbackNotification.title = "Text Copied to Clipboard"
-                                fallbackNotification.informativeText = "Streaming failed, text copied instead"
-                                NSUserNotificationCenter.default.deliver(fallbackNotification)
+                            // Note: Text is already in clipboard from Cmd+C, no need to copy again
+                            let fallbackNotification = NSUserNotification()
+                            fallbackNotification.title = "Text Ready in Clipboard"
+                            fallbackNotification.informativeText = "Streaming failed, selected text copied via Cmd+C"
+                            NSUserNotificationCenter.default.deliver(fallbackNotification)
+                        }
+                        
+                        // Restore original clipboard contents after streaming
+                        DispatchQueue.main.async {
+                            pasteboard.clearContents()
+                            for (type, data) in savedItems {
+                                pasteboard.setData(data, forType: type)
                             }
+                            print("♻️ Restored original clipboard contents")
                         }
                     }
                 } else {
-                    // Fallback: put the selected text in clipboard
-                    let pasteboard = NSPasteboard.general
-                    pasteboard.clearContents()
-                    pasteboard.setString(selectedText, forType: .string)
-                    
                     let notification = NSUserNotification()
                     notification.title = "Selected Text Copied"
-                    notification.informativeText = "Streaming TTS not available, text copied to clipboard: \(selectedText.prefix(100))\(selectedText.count > 100 ? "..." : "")"
+                    notification.informativeText = "Streaming TTS not available, text copied to clipboard: \(copiedText.prefix(100))\(copiedText.count > 100 ? "..." : "")"
                     NSUserNotificationCenter.default.deliver(notification)
+                    
+                    // Don't restore clipboard in this case since user might want the copied text
                 }
             } else {
-                print("⚠️ No text selected or accessibility API failed")
+                print("⚠️ No text was copied - nothing selected or copy failed")
                 
                 let notification = NSUserNotification()
                 notification.title = "No Text Selected"
-                notification.informativeText = "Please select some text first or app doesn't support accessibility"
+                notification.informativeText = "Please select some text first before using TTS"
                 NSUserNotificationCenter.default.deliver(notification)
+                
+                // Restore clipboard since copy attempt failed
+                pasteboard.clearContents()
+                for (type, data) in savedItems {
+                    pasteboard.setData(data, forType: type)
+                }
+                print("♻️ Restored clipboard after failed copy")
             }
-        } else {
-            print("⚠️ Could not get focused UI element")
-            
-            let notification = NSUserNotification()
-            notification.title = "No Focused Element"
-            notification.informativeText = "Could not access the current application"
-            NSUserNotificationCenter.default.deliver(notification)
         }
     }
     

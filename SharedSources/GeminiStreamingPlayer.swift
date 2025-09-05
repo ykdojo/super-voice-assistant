@@ -75,7 +75,7 @@ public class GeminiStreamingPlayer {
         }
     }
     
-    public func playTextWithSentencePauses(_ text: String, audioCollector: GeminiAudioCollector, pauseDurationMs: Int = 100) async throws {
+    public func playTextWithSentencePauses(_ text: String, audioCollector: GeminiAudioCollector, pauseDurationMs: Int = 0) async throws {
         try startAudioEngine()
         
         // Split text into sentences

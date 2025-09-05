@@ -35,11 +35,10 @@ public class GeminiAudioCollector {
         
         do {
             // Send setup message
-            // "model": "models/gemini-2.0-flash-live-001",
             let setupMessage = """
             {
                 "setup": {
-                    "model": "models/gemini-2.5-flash-live-preview",
+                    "model": "models/gemini-2.0-flash-live-001",
                     "generation_config": {
                         "response_modalities": ["AUDIO"],
                         "speech_config": {

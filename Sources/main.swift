@@ -49,6 +49,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
     private var audioManager: AudioTranscriptionManager!
     private var streamingPlayer: GeminiStreamingPlayer?
     private var audioCollector: GeminiAudioCollector?
+    private var isCurrentlyPlaying = false
+    private var currentStreamingTask: Task<Void, Never>?
     
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Load environment variables
@@ -103,7 +105,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
         }
         
         KeyboardShortcuts.onKeyUp(for: .readSelectedText) { [weak self] in
-            self?.readSelectedText()
+            self?.handleReadSelectedTextToggle()
         }
         
         // Set up audio manager
@@ -156,6 +158,36 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
         unifiedWindow?.showWindow(tab: .statistics)
     }
     
+    func handleReadSelectedTextToggle() {
+        // If currently playing, stop the audio
+        if isCurrentlyPlaying {
+            stopCurrentPlayback()
+            return
+        }
+        
+        // Otherwise, start reading selected text
+        readSelectedText()
+    }
+    
+    func stopCurrentPlayback() {
+        print("🛑 Stopping audio playback")
+        
+        // Cancel the current streaming task
+        currentStreamingTask?.cancel()
+        currentStreamingTask = nil
+        
+        // Stop the audio player
+        streamingPlayer?.stopAudioEngine()
+        
+        // Reset playing state
+        isCurrentlyPlaying = false
+        
+        let notification = NSUserNotification()
+        notification.title = "Audio Stopped"
+        notification.informativeText = "Text-to-speech playback stopped"
+        NSUserNotificationCenter.default.deliver(notification)
+    }
+    
     func readSelectedText() {
         // Save current clipboard contents first
         let pasteboard = NSPasteboard.general
@@ -193,22 +225,30 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
                 
                 // Try to stream speech with our streaming components
                 if let audioCollector = self?.audioCollector, let streamingPlayer = self?.streamingPlayer {
-                    Task {
+                    self?.isCurrentlyPlaying = true
+                    
+                    self?.currentStreamingTask = Task {
                         do {
                             let notification = NSUserNotification()
                             notification.title = "Streaming TTS"
                             notification.informativeText = "Starting streaming synthesis: \(copiedText.prefix(50))\(copiedText.count > 50 ? "..." : "")"
                             NSUserNotificationCenter.default.deliver(notification)
                             
-                            // Stream audio using single API call with model-instructed pauses
-                            let audioStream = audioCollector.collectAudioChunks(from: copiedText)
-                            try await streamingPlayer.playAudioStream(audioStream)
+                            // Stream audio using single API call with model-instructed pauses (50ms pauses)
+                            try await streamingPlayer.playTextWithSentencePauses(copiedText, audioCollector: audioCollector, pauseDurationMs: 0)
+                            
+                            // Check if task was cancelled
+                            if Task.isCancelled {
+                                return
+                            }
                             
                             let completionNotification = NSUserNotification()
                             completionNotification.title = "Streaming TTS Complete"
                             completionNotification.informativeText = "Finished streaming selected text"
                             NSUserNotificationCenter.default.deliver(completionNotification)
                             
+                        } catch is CancellationError {
+                            print("🛑 Audio streaming was cancelled")
                         } catch {
                             print("❌ Streaming TTS Error: \(error)")
                             
@@ -222,6 +262,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
                             fallbackNotification.title = "Text Ready in Clipboard"
                             fallbackNotification.informativeText = "Streaming failed, selected text copied via Cmd+C"
                             NSUserNotificationCenter.default.deliver(fallbackNotification)
+                        }
+                        
+                        // Reset playing state when task completes (normally or via cancellation)
+                        DispatchQueue.main.async {
+                            self?.isCurrentlyPlaying = false
+                            self?.currentStreamingTask = nil
                         }
                         
                         // Restore original clipboard contents after streaming

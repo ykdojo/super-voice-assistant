@@ -28,10 +28,11 @@ public class GeminiStreamingPlayer {
     }
     
     public func stopAudioEngine() {
+        print("🛑 Stopping audio engine and player")
+        playerNode.stop()
         if audioEngine.isRunning {
             audioEngine.stop()
         }
-        playerNode.stop()
     }
     
     public func playAudioStream(_ audioStream: AsyncThrowingStream<Data, Error>) async throws {
@@ -42,6 +43,9 @@ public class GeminiStreamingPlayer {
         
         do {
             for try await audioChunk in audioStream {
+                // Check for cancellation
+                try Task.checkCancellation()
+                
                 print("🎵 Playing chunk: \(audioChunk.count) bytes")
                 
                 // Convert raw PCM data to AVAudioPCMBuffer
@@ -110,6 +114,9 @@ public class GeminiStreamingPlayer {
             
             // Play this sentence's audio chunks as they arrive
             for try await audioChunk in audioStream {
+                // Check for cancellation
+                try Task.checkCancellation()
+                
                 let buffer = try createPCMBuffer(from: audioChunk)
                 
                 if isFirstChunk {

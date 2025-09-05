@@ -90,76 +90,25 @@ public class GeminiStreamingPlayer {
             return
         }
         
-        // Collection system: Always maintain up to 2 active collections
-        // Staggered warm start: begin with 1, then ramp to 2 after first playback chunk
-        let maxConcurrentCollections = 2
-        var targetConcurrentCollections = 1
-        var activeStreams: [Int: AsyncThrowingStream<Data, Error>] = [:]
-        var streamCompletionFlags: [Int: Bool] = [:]
-        var collectingSentences = Set<Int>()
-        var nextSentenceToCollect = 0
-
-        // Helper function to start a collection stream
-        func startCollection(for sentenceIndex: Int) {
-            print("🚀 Starting collection for sentence \(sentenceIndex + 1)")
-            collectingSentences.insert(sentenceIndex)
-            activeStreams[sentenceIndex] = audioCollector.collectAudioChunks(from: sentences[sentenceIndex]) { result in
-                // Mark collection finished for this sentence
-                collectingSentences.remove(sentenceIndex)
-                switch result {
-                case .success:
-                    streamCompletionFlags[sentenceIndex] = true
-                case .failure:
-                    streamCompletionFlags[sentenceIndex] = true
-                }
-                // Top up immediately when any collection completes
-                // Run on a detached task to avoid blocking collector thread
-                Task { @MainActor in
-                    // Top up on the main actor to reduce contention
-                    topUpCollectionsIfNeeded()
-                }
-            }
-            streamCompletionFlags[sentenceIndex] = false
-        }
-
-        // Keep the collection pool topped up to the desired concurrency
-        func topUpCollectionsIfNeeded() {
-            while collectingSentences.count < targetConcurrentCollections && nextSentenceToCollect < sentences.count {
-                startCollection(for: nextSentenceToCollect)
-                nextSentenceToCollect += 1
-            }
-        }
-
-        // Start initial collections (warm start with 1) on MainActor to avoid races
-        await MainActor.run {
-            topUpCollectionsIfNeeded()
-        }
-
-        // Time-based warm-start ramp: after 100ms, increase to 2 concurrent collections
-        Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
-            if targetConcurrentCollections < maxConcurrentCollections {
-                targetConcurrentCollections = maxConcurrentCollections
-                print("⚡️ Warm start timer: increasing concurrent collections to \(targetConcurrentCollections)")
-                topUpCollectionsIfNeeded()
-            }
-        }
-        
         var isFirstChunk = true
         
-        // Playback system: Stream and play sentences as chunks arrive
+        // Sequential processing: handle one sentence at a time
         for sentenceIndex in 0..<sentences.count {
-            print("🔊 Playing sentence \(sentenceIndex + 1)/\(sentences.count)")
-            
-            // Wait for this sentence's stream to be available
-            while activeStreams[sentenceIndex] == nil {
-                try await Task.sleep(nanoseconds: 10_000_000) // 10ms check
-                try Task.checkCancellation()
-            }
-            
-            guard let stream = activeStreams[sentenceIndex] else { continue }
+            print("🔊 Processing sentence \(sentenceIndex + 1)/\(sentences.count)")
             
             var sentenceBytesPlayed = 0
+            
+            // Start collection for this sentence and get the stream
+            print("🚀 Starting collection for sentence \(sentenceIndex + 1)")
+            let stream = audioCollector.collectAudioChunks(from: sentences[sentenceIndex]) { result in
+                // Completion callback - just for logging
+                switch result {
+                case .success:
+                    print("✅ Audio collection complete for sentence \(sentenceIndex + 1)")
+                case .failure(let error):
+                    print("❌ Audio collection failed for sentence \(sentenceIndex + 1): \(error)")
+                }
+            }
             
             // Stream and play this sentence's audio chunks as they arrive
             for try await chunk in stream {
@@ -171,15 +120,6 @@ public class GeminiStreamingPlayer {
                     print("▶️ Starting playback")
                     playerNode.play()
                     isFirstChunk = false
-                    
-                    // Warm start completed: ramp up to full concurrency now that audio has started
-                    await MainActor.run {
-                        if targetConcurrentCollections < maxConcurrentCollections {
-                            targetConcurrentCollections = maxConcurrentCollections
-                            print("⚡️ Warm start complete: increasing concurrent collections to \(targetConcurrentCollections)")
-                            topUpCollectionsIfNeeded()
-                        }
-                    }
                 }
                 
                 playerNode.scheduleBuffer(buffer, completionHandler: nil)
@@ -189,15 +129,6 @@ public class GeminiStreamingPlayer {
             }
             
             print("✅ Sentence \(sentenceIndex + 1) playback complete: \(sentenceBytesPlayed) bytes")
-            
-            // Mark this stream as completed and free stream storage
-            streamCompletionFlags[sentenceIndex] = true
-            activeStreams.removeValue(forKey: sentenceIndex)
-            
-            // Ensure collection pool is topped up (in case completion callback hasn't already done so)
-            await MainActor.run {
-                topUpCollectionsIfNeeded()
-            }
             
             // Add pause between sentences (except after the last sentence)
             if sentenceIndex < sentences.count - 1 {
@@ -210,7 +141,7 @@ public class GeminiStreamingPlayer {
             }
         }
         
-        print("🎉 All sentences completed with optimized streaming")
+        print("🎉 All sentences completed with sequential streaming")
     }
     
     private func addSentencePause(pauseDurationMs: Int) async throws {

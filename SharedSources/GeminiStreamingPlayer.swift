@@ -130,8 +130,20 @@ public class GeminiStreamingPlayer {
             }
         }
 
-        // Start initial collections
-        topUpCollectionsIfNeeded()
+        // Start initial collections (warm start with 1) on MainActor to avoid races
+        await MainActor.run {
+            topUpCollectionsIfNeeded()
+        }
+
+        // Time-based warm-start ramp: after 100ms, increase to 2 concurrent collections
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
+            if targetConcurrentCollections < maxConcurrentCollections {
+                targetConcurrentCollections = maxConcurrentCollections
+                print("⚡️ Warm start timer: increasing concurrent collections to \(targetConcurrentCollections)")
+                topUpCollectionsIfNeeded()
+            }
+        }
         
         var isFirstChunk = true
         
@@ -161,10 +173,12 @@ public class GeminiStreamingPlayer {
                     isFirstChunk = false
                     
                     // Warm start completed: ramp up to full concurrency now that audio has started
-                    if targetConcurrentCollections < maxConcurrentCollections {
-                        targetConcurrentCollections = maxConcurrentCollections
-                        print("⚡️ Warm start complete: increasing concurrent collections to \(targetConcurrentCollections)")
-                        topUpCollectionsIfNeeded()
+                    await MainActor.run {
+                        if targetConcurrentCollections < maxConcurrentCollections {
+                            targetConcurrentCollections = maxConcurrentCollections
+                            print("⚡️ Warm start complete: increasing concurrent collections to \(targetConcurrentCollections)")
+                            topUpCollectionsIfNeeded()
+                        }
                     }
                 }
                 
@@ -181,12 +195,18 @@ public class GeminiStreamingPlayer {
             activeStreams.removeValue(forKey: sentenceIndex)
             
             // Ensure collection pool is topped up (in case completion callback hasn't already done so)
-            topUpCollectionsIfNeeded()
+            await MainActor.run {
+                topUpCollectionsIfNeeded()
+            }
             
             // Add pause between sentences (except after the last sentence)
             if sentenceIndex < sentences.count - 1 {
-                print("⏸️ Adding \(pauseDurationMs)ms pause between sentences")
-                try await addSentencePause(pauseDurationMs: pauseDurationMs)
+                if pauseDurationMs > 0 {
+                    print("⏸️ Adding \(pauseDurationMs)ms pause between sentences")
+                    try await addSentencePause(pauseDurationMs: pauseDurationMs)
+                } else {
+                    print("⏭️ No pause between sentences")
+                }
             }
         }
         
@@ -194,6 +214,7 @@ public class GeminiStreamingPlayer {
     }
     
     private func addSentencePause(pauseDurationMs: Int) async throws {
+        guard pauseDurationMs > 0 else { return }
         // Create a silent buffer for the pause
         let sampleRate = audioFormat.sampleRate
         let pauseSamples = Int(sampleRate * Double(pauseDurationMs) / 1000.0)

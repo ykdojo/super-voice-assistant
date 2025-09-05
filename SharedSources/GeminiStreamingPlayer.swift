@@ -90,8 +90,10 @@ public class GeminiStreamingPlayer {
             return
         }
         
-        // Collection system: Always maintain 2 active collections independent of playback
+        // Collection system: Always maintain up to 2 active collections
+        // Staggered warm start: begin with 1, then ramp to 2 after first playback chunk
         let maxConcurrentCollections = 2
+        var targetConcurrentCollections = 1
         var activeStreams: [Int: AsyncThrowingStream<Data, Error>] = [:]
         var streamCompletionFlags: [Int: Bool] = [:]
         var collectingSentences = Set<Int>()
@@ -122,7 +124,7 @@ public class GeminiStreamingPlayer {
 
         // Keep the collection pool topped up to the desired concurrency
         func topUpCollectionsIfNeeded() {
-            while collectingSentences.count < maxConcurrentCollections && nextSentenceToCollect < sentences.count {
+            while collectingSentences.count < targetConcurrentCollections && nextSentenceToCollect < sentences.count {
                 startCollection(for: nextSentenceToCollect)
                 nextSentenceToCollect += 1
             }
@@ -157,6 +159,13 @@ public class GeminiStreamingPlayer {
                     print("▶️ Starting playback")
                     playerNode.play()
                     isFirstChunk = false
+                    
+                    // Warm start completed: ramp up to full concurrency now that audio has started
+                    if targetConcurrentCollections < maxConcurrentCollections {
+                        targetConcurrentCollections = maxConcurrentCollections
+                        print("⚡️ Warm start complete: increasing concurrent collections to \(targetConcurrentCollections)")
+                        topUpCollectionsIfNeeded()
+                    }
                 }
                 
                 playerNode.scheduleBuffer(buffer, completionHandler: nil)

@@ -90,24 +90,46 @@ public class GeminiStreamingPlayer {
             return
         }
         
-        // Collection system: Always maintain 2 active streams running independently
+        // Collection system: Always maintain 2 active collections independent of playback
         let maxConcurrentCollections = 2
         var activeStreams: [Int: AsyncThrowingStream<Data, Error>] = [:]
         var streamCompletionFlags: [Int: Bool] = [:]
+        var collectingSentences = Set<Int>()
         var nextSentenceToCollect = 0
-        
+
         // Helper function to start a collection stream
         func startCollection(for sentenceIndex: Int) {
             print("🚀 Starting collection for sentence \(sentenceIndex + 1)")
-            activeStreams[sentenceIndex] = audioCollector.collectAudioChunks(from: sentences[sentenceIndex])
+            collectingSentences.insert(sentenceIndex)
+            activeStreams[sentenceIndex] = audioCollector.collectAudioChunks(from: sentences[sentenceIndex]) { result in
+                // Mark collection finished for this sentence
+                collectingSentences.remove(sentenceIndex)
+                switch result {
+                case .success:
+                    streamCompletionFlags[sentenceIndex] = true
+                case .failure:
+                    streamCompletionFlags[sentenceIndex] = true
+                }
+                // Top up immediately when any collection completes
+                // Run on a detached task to avoid blocking collector thread
+                Task { @MainActor in
+                    // Top up on the main actor to reduce contention
+                    topUpCollectionsIfNeeded()
+                }
+            }
             streamCompletionFlags[sentenceIndex] = false
         }
-        
-        // Start initial collections (up to 2)
-        while activeStreams.count < maxConcurrentCollections && nextSentenceToCollect < sentences.count {
-            startCollection(for: nextSentenceToCollect)
-            nextSentenceToCollect += 1
+
+        // Keep the collection pool topped up to the desired concurrency
+        func topUpCollectionsIfNeeded() {
+            while collectingSentences.count < maxConcurrentCollections && nextSentenceToCollect < sentences.count {
+                startCollection(for: nextSentenceToCollect)
+                nextSentenceToCollect += 1
+            }
         }
+
+        // Start initial collections
+        topUpCollectionsIfNeeded()
         
         var isFirstChunk = true
         
@@ -145,15 +167,12 @@ public class GeminiStreamingPlayer {
             
             print("✅ Sentence \(sentenceIndex + 1) playback complete: \(sentenceBytesPlayed) bytes")
             
-            // Mark this stream as completed and start next collection
+            // Mark this stream as completed and free stream storage
             streamCompletionFlags[sentenceIndex] = true
             activeStreams.removeValue(forKey: sentenceIndex)
             
-            // Start next collection when this one finishes
-            if nextSentenceToCollect < sentences.count {
-                startCollection(for: nextSentenceToCollect)
-                nextSentenceToCollect += 1
-            }
+            // Ensure collection pool is topped up (in case completion callback hasn't already done so)
+            topUpCollectionsIfNeeded()
             
             // Add pause between sentences (except after the last sentence)
             if sentenceIndex < sentences.count - 1 {

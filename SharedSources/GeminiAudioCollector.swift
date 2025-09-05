@@ -8,19 +8,21 @@ public class GeminiAudioCollector {
         self.apiKey = apiKey
     }
     
-    public func collectAudioChunks(from text: String) -> AsyncThrowingStream<Data, Error> {
+    public func collectAudioChunks(from text: String, onComplete: ((Result<Void, Error>) -> Void)? = nil) -> AsyncThrowingStream<Data, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
-                    try await self.performCollection(text: text, continuation: continuation)
+                    try await self.performCollection(text: text, continuation: continuation, onComplete: onComplete)
                 } catch {
+                    // Notify completion with failure and finish the stream
+                    onComplete?(.failure(error))
                     continuation.finish(throwing: error)
                 }
             }
         }
     }
     
-    private func performCollection(text: String, continuation: AsyncThrowingStream<Data, Error>.Continuation) async throws {
+    private func performCollection(text: String, continuation: AsyncThrowingStream<Data, Error>.Continuation, onComplete: ((Result<Void, Error>) -> Void)? = nil) async throws {
         guard let url = URL(string: "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=\(apiKey)") else {
             throw GeminiAudioCollectorError.invalidURL
         }
@@ -131,6 +133,8 @@ public class GeminiAudioCollector {
             }
             
             print("✅ Audio collection complete")
+            // Notify successful completion before finishing the stream
+            onComplete?(.success(()))
             continuation.finish()
             
         } catch {

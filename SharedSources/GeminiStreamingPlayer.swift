@@ -91,27 +91,51 @@ public class GeminiStreamingPlayer {
         }
         
         var isFirstChunk = true
+        var nextSentenceStream: AsyncThrowingStream<Data, Error>?
         
-        // Sequential processing: handle one sentence at a time
+        // Pipelined processing: start next sentence collection while current is playing
         for sentenceIndex in 0..<sentences.count {
             print("🔊 Processing sentence \(sentenceIndex + 1)/\(sentences.count)")
             
             var sentenceBytesPlayed = 0
+            let currentStream: AsyncThrowingStream<Data, Error>
             
-            // Start collection for this sentence and get the stream
-            print("🚀 Starting collection for sentence \(sentenceIndex + 1)")
-            let stream = audioCollector.collectAudioChunks(from: sentences[sentenceIndex]) { result in
-                // Completion callback - just for logging
-                switch result {
-                case .success:
-                    print("✅ Audio collection complete for sentence \(sentenceIndex + 1)")
-                case .failure(let error):
-                    print("❌ Audio collection failed for sentence \(sentenceIndex + 1): \(error)")
+            // Use pre-collected stream if available, otherwise start collection now
+            if let preCollectedStream = nextSentenceStream {
+                print("🔄 Using pre-collected stream for sentence \(sentenceIndex + 1)")
+                currentStream = preCollectedStream
+                nextSentenceStream = nil
+            } else {
+                print("🚀 Starting collection for sentence \(sentenceIndex + 1)")
+                currentStream = audioCollector.collectAudioChunks(from: sentences[sentenceIndex]) { result in
+                    switch result {
+                    case .success:
+                        print("✅ Audio collection complete for sentence \(sentenceIndex + 1)")
+                    case .failure(let error):
+                        print("❌ Audio collection failed for sentence \(sentenceIndex + 1): \(error)")
+                    }
+                }
+            }
+            
+            // Start collecting next sentence after 1.5 seconds of current playback
+            if sentenceIndex < sentences.count - 1 {
+                let nextIndex = sentenceIndex + 1
+                Task {
+                    try? await Task.sleep(nanoseconds: 1_500_000_000) // 1.5 seconds
+                    print("🔮 Pre-collecting sentence \(nextIndex + 1)")
+                    nextSentenceStream = audioCollector.collectAudioChunks(from: sentences[nextIndex]) { result in
+                        switch result {
+                        case .success:
+                            print("✅ Audio pre-collection complete for sentence \(nextIndex + 1)")
+                        case .failure(let error):
+                            print("❌ Audio pre-collection failed for sentence \(nextIndex + 1): \(error)")
+                        }
+                    }
                 }
             }
             
             // Stream and play this sentence's audio chunks as they arrive
-            for try await chunk in stream {
+            for try await chunk in currentStream {
                 try Task.checkCancellation()
                 
                 let buffer = try createPCMBuffer(from: chunk)
@@ -141,7 +165,7 @@ public class GeminiStreamingPlayer {
             }
         }
         
-        print("🎉 All sentences completed with sequential streaming")
+        print("🎉 All sentences completed with pipelined streaming")
     }
     
     private func addSentencePause(pauseDurationMs: Int) async throws {

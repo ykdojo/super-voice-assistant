@@ -92,25 +92,39 @@ public class GeminiStreamingPlayer {
         
         var isFirstChunk = true
         
-        // Simple sequential processing: complete one sentence before starting the next
-        for sentenceIndex in 0..<sentences.count {
-            print("🔊 Processing sentence \(sentenceIndex + 1)/\(sentences.count)")
-            
-            var sentenceBytesPlayed = 0
-            
-            // Start collection for this sentence and get the stream
-            print("🚀 Starting collection for sentence \(sentenceIndex + 1)")
-            let stream = audioCollector.collectAudioChunks(from: sentences[sentenceIndex]) { result in
+        // Prefetch one sentence ahead to minimize gaps between sentences
+        var currentIndex = 0
+        print("🚀 Starting collection for sentence 1/\(sentences.count)")
+        var currentStream: AsyncThrowingStream<Data, Error> = audioCollector.collectAudioChunks(from: sentences[currentIndex]) { result in
+            switch result {
+            case .success:
+                print("✅ Audio collection complete for sentence \(currentIndex + 1)")
+            case .failure(let error):
+                print("❌ Audio collection failed for sentence \(currentIndex + 1): \(error)")
+            }
+        }
+        
+        // Kick off collection for the next sentence (if any)
+        var nextStream: AsyncThrowingStream<Data, Error>? = nil
+        if sentences.count > 1 {
+            let nextIndex = currentIndex + 1
+            print("🧠 Prefetching sentence \(nextIndex + 1)/\(sentences.count)")
+            nextStream = audioCollector.collectAudioChunks(from: sentences[nextIndex]) { result in
                 switch result {
                 case .success:
-                    print("✅ Audio collection complete for sentence \(sentenceIndex + 1)")
+                    print("✅ Audio collection complete for sentence \(nextIndex + 1)")
                 case .failure(let error):
-                    print("❌ Audio collection failed for sentence \(sentenceIndex + 1): \(error)")
+                    print("❌ Audio collection failed for sentence \(nextIndex + 1): \(error)")
                 }
             }
+        }
+        
+        while currentIndex < sentences.count {
+            print("🔊 Processing sentence \(currentIndex + 1)/\(sentences.count)")
+            var sentenceBytesPlayed = 0
             
             // Stream and play this sentence's audio chunks as they arrive
-            for try await chunk in stream {
+            for try await chunk in currentStream {
                 try Task.checkCancellation()
                 
                 let buffer = try createPCMBuffer(from: chunk)
@@ -124,13 +138,14 @@ public class GeminiStreamingPlayer {
                 playerNode.scheduleBuffer(buffer, completionHandler: nil)
                 sentenceBytesPlayed += chunk.count
                 
+                // Small pacing to avoid overwhelming scheduling
                 try await Task.sleep(nanoseconds: 1_000_000) // 1ms between chunks
             }
             
-            print("✅ Sentence \(sentenceIndex + 1) playback complete: \(sentenceBytesPlayed) bytes")
+            print("✅ Sentence \(currentIndex + 1) playback complete: \(sentenceBytesPlayed) bytes")
             
             // Add pause between sentences (except after the last sentence)
-            if sentenceIndex < sentences.count - 1 {
+            if currentIndex < sentences.count - 1 {
                 if pauseDurationMs > 0 {
                     print("⏸️ Adding \(pauseDurationMs)ms pause between sentences")
                     try await addSentencePause(pauseDurationMs: pauseDurationMs)
@@ -138,9 +153,46 @@ public class GeminiStreamingPlayer {
                     print("⏭️ No pause between sentences")
                 }
             }
+            
+            // Advance to next sentence
+            currentIndex += 1
+            if currentIndex >= sentences.count {
+                break
+            }
+            
+            // Swap in prefetched stream if available; otherwise start collection now
+            if let prefetched = nextStream {
+                currentStream = prefetched
+            } else {
+                print("🚀 (Fallback) Starting collection for sentence \(currentIndex + 1)/\(sentences.count)")
+                currentStream = audioCollector.collectAudioChunks(from: sentences[currentIndex]) { result in
+                    switch result {
+                    case .success:
+                        print("✅ Audio collection complete for sentence \(currentIndex + 1)")
+                    case .failure(let error):
+                        print("❌ Audio collection failed for sentence \(currentIndex + 1): \(error)")
+                    }
+                }
+            }
+            
+            // Start prefetch of the following sentence (one-ahead), if any
+            let upcomingIndex = currentIndex + 1
+            if upcomingIndex < sentences.count {
+                print("🧠 Prefetching sentence \(upcomingIndex + 1)/\(sentences.count)")
+                nextStream = audioCollector.collectAudioChunks(from: sentences[upcomingIndex]) { result in
+                    switch result {
+                    case .success:
+                        print("✅ Audio collection complete for sentence \(upcomingIndex + 1)")
+                    case .failure(let error):
+                        print("❌ Audio collection failed for sentence \(upcomingIndex + 1): \(error)")
+                    }
+                }
+            } else {
+                nextStream = nil
+            }
         }
         
-        print("🎉 All sentences completed with simple sequential streaming")
+        print("🎉 All sentences completed with prefetch streaming")
     }
     
     private func addSentencePause(pauseDurationMs: Int) async throws {

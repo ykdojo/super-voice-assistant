@@ -1,17 +1,25 @@
 # Super Voice Assistant
 
-A native macOS dictation app with global hotkey support for instant voice-to-text transcription.
+A native macOS voice assistant with voice-to-text transcription and streaming text-to-speech capabilities.
 
-## Current Status
+## Features
 
-A macOS menu bar app that transcribes voice to text using WhisperKit. Press Shift+Alt+Z to record, and the transcribed text automatically pastes at your cursor position. Press Command+Option+A to view transcription history.
+**Voice-to-Text Transcription**
+- Press Command+Option+Z to record audio and get instant transcription
+- Automatic text pasting at cursor position
+- Transcription history with Command+Option+A
 
-**[See TODO.md](TODO.md)** for planned features and ongoing tasks.
+**Streaming Text-to-Speech**
+- Press Command+Option+S to read selected text aloud using Gemini Live API
+- Press Command+Option+S again while reading to cancel the operation
+- Sequential streaming for smooth, natural speech with minimal latency
+- Smart sentence splitting for optimal speech flow
 
 ## Requirements
 
 - macOS 14.0 or later
 - Xcode 15+ or Xcode Command Line Tools (for Swift 5.9+)
+- Gemini API key (for text-to-speech functionality)
 
 ## System Permissions Setup
 
@@ -45,6 +53,10 @@ You must manually grant accessibility permissions for the app to:
 git clone https://github.com/yourusername/super-voice-assistant.git
 cd super-voice-assistant
 
+# Set up environment (for TTS functionality)
+cp .env.example .env
+# Edit .env and add your GEMINI_API_KEY
+
 # Build the app
 swift build
 
@@ -56,16 +68,25 @@ The app will appear in your menu bar as a waveform icon.
 
 ## Usage
 
+### Voice-to-Text Transcription
 1. Launch the app - it appears in the menu bar
 2. Open Settings (click menu bar icon > Settings) to download a WhisperKit model
-3. Press **Shift+Alt+Z** to start recording (the menu bar icon changes to show a recording indicator and live audio level meter)
-4. Press **Shift+Alt+Z** again to stop recording and transcribe
-5. The transcribed text will automatically be pasted at your cursor position
+3. Press **Command+Option+Z** to start recording (menu bar icon shows recording indicator)
+4. Press **Command+Option+Z** again to stop recording and transcribe
+5. The transcribed text automatically pastes at your cursor position
 6. Press **Escape** during recording to cancel without transcribing
+
+### Text-to-Speech
+1. Select any text in any application
+2. Press **Command+Option+S** to read the selected text aloud
+3. Press **Command+Option+S** again while reading to cancel the operation
+4. The app uses Gemini Live API for natural, streaming speech synthesis
+5. Configure audio devices via Settings for optimal playback
 
 ### Keyboard Shortcuts
 
-- **Shift+Alt+Z**: Start/stop recording and transcribe
+- **Command+Option+Z**: Start/stop recording and transcribe
+- **Command+Option+S**: Read selected text aloud / Cancel TTS playback
 - **Command+Option+A**: Show transcription history window
 - **Escape**: Cancel recording (when recording is active)
 
@@ -96,25 +117,42 @@ swift run TestTranscription
 
 # Test live transcription with microphone input
 swift run TestLiveTranscription
+
+# Test streaming TTS functionality
+swift run TestStreamingTTS
+
+# Test audio collection for TTS
+swift run TestAudioCollector
+
+# Test sentence splitting for TTS
+swift run TestSentenceSplitter
 ```
 
 
 ## Tech Stack
 
 - **Language**: Swift
-- **UI Framework**: AppKit (Cocoa)
+- **UI Framework**: AppKit (Cocoa)  
 - **Speech Recognition**: [WhisperKit](https://github.com/argmaxinc/WhisperKit)
+- **Text-to-Speech**: Gemini Live API with streaming WebSocket
+- **Audio Processing**: AVAudioEngine with TimePitch effects
 - **Global Hotkeys**: [KeyboardShortcuts](https://github.com/sindresorhus/KeyboardShortcuts)
 
 ## Project Structure
 
-- `Sources/` - Main app code
-- `SharedSources/` - Shared model management code
-- `TestSources/` - Model download test utility
-- `ListModelsSources/` - Model listing utility
-- `ValidateModelsSources/` - Model validation utility
-- `DeleteModelsSources/` - Bulk model deletion utility
-- `DeleteModelSources/` - Single model deletion utility
+- `Sources/` - Main app code with TTS integration
+- `SharedSources/` - Shared components (models, TTS, audio management)
+  - `GeminiStreamingPlayer.swift` - Streaming TTS playback engine
+  - `GeminiAudioCollector.swift` - Audio collection and WebSocket handling
+  - `SmartSentenceSplitter.swift` - Text processing for optimal speech
+  - `AudioDeviceManager.swift` - Audio device configuration
+- Test utilities:
+  - `TestSources/` - Model download test
+  - `TestStreamingTTSSources/` - TTS functionality test
+  - `TestAudioCollectorSources/` - Audio collection test
+  - `TestSentenceSplitterSources/` - Sentence splitting test
+- Model management utilities:
+  - `ListModelsSources/`, `ValidateModelsSources/`, `DeleteModelsSources/`
 
 ## License
 

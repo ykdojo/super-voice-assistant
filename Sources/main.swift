@@ -5,10 +5,37 @@ import AVFoundation
 import WhisperKit
 import SharedModels
 import Combine
+import ApplicationServices
+import Foundation
+
+// Environment variable loading
+func loadEnvironmentVariables() {
+    let fileManager = FileManager.default
+    let currentDirectory = fileManager.currentDirectoryPath
+    let envPath = "\(currentDirectory)/.env"
+    
+    guard fileManager.fileExists(atPath: envPath),
+          let envContent = try? String(contentsOfFile: envPath) else {
+        return
+    }
+    
+    for line in envContent.components(separatedBy: .newlines) {
+        let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedLine.isEmpty && !trimmedLine.hasPrefix("#") else { continue }
+        
+        let parts = trimmedLine.components(separatedBy: "=")
+        guard parts.count == 2 else { continue }
+        
+        let key = parts[0].trimmingCharacters(in: .whitespacesAndNewlines)
+        let value = parts[1].trimmingCharacters(in: .whitespacesAndNewlines)
+        setenv(key, value, 1)
+    }
+}
 
 extension KeyboardShortcuts.Name {
     static let startRecording = Self("startRecording")
     static let showHistory = Self("showHistory")
+    static let readSelectedText = Self("readSelectedText")
 }
 
 class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDelegate {
@@ -20,8 +47,28 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
     private var modelCancellable: AnyCancellable?
     private var transcriptionTimer: Timer?
     private var audioManager: AudioTranscriptionManager!
+    private var streamingPlayer: GeminiStreamingPlayer?
+    private var audioCollector: GeminiAudioCollector?
+    private var isCurrentlyPlaying = false
+    private var currentStreamingTask: Task<Void, Never>?
     
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Load environment variables
+        loadEnvironmentVariables()
+        
+        // Initialize streaming TTS components if API key is available
+        if let apiKey = ProcessInfo.processInfo.environment["GEMINI_API_KEY"], !apiKey.isEmpty {
+            if #available(macOS 14.0, *) {
+                streamingPlayer = GeminiStreamingPlayer(playbackSpeed: 1.15)
+                audioCollector = GeminiAudioCollector(apiKey: apiKey)
+                print("✅ Streaming TTS components initialized")
+            } else {
+                print("⚠️ Streaming TTS requires macOS 14.0 or later")
+            }
+        } else {
+            print("⚠️ GEMINI_API_KEY not found in environment variables")
+        }
+        
         // Create the status bar item
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         
@@ -34,6 +81,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
         let menu = NSMenu()
         menu.addItem(NSMenuItem(title: "Recording: Press Command+Option+Z", action: nil, keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "History: Press Command+Option+A", action: nil, keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "Read Selected Text: Press Command+Option+S", action: nil, keyEquivalent: ""))
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Settings...", action: #selector(openSettings), keyEquivalent: ","))
         menu.addItem(NSMenuItem(title: "View History...", action: #selector(showTranscriptionHistory), keyEquivalent: "h"))
@@ -45,6 +93,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
         // Set default keyboard shortcuts
         KeyboardShortcuts.setShortcut(.init(.z, modifiers: [.command, .option]), for: .startRecording)
         KeyboardShortcuts.setShortcut(.init(.a, modifiers: [.command, .option]), for: .showHistory)
+        KeyboardShortcuts.setShortcut(.init(.s, modifiers: [.command, .option]), for: .readSelectedText)
         
         // Set up keyboard shortcut handlers
         KeyboardShortcuts.onKeyUp(for: .startRecording) { [weak self] in
@@ -53,6 +102,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
         
         KeyboardShortcuts.onKeyUp(for: .showHistory) { [weak self] in
             self?.showTranscriptionHistory()
+        }
+        
+        KeyboardShortcuts.onKeyUp(for: .readSelectedText) { [weak self] in
+            self?.handleReadSelectedTextToggle()
         }
         
         // Set up audio manager
@@ -105,7 +158,152 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
         unifiedWindow?.showWindow(tab: .statistics)
     }
     
-
+    func handleReadSelectedTextToggle() {
+        // If currently playing, stop the audio
+        if isCurrentlyPlaying {
+            stopCurrentPlayback()
+            return
+        }
+        
+        // Otherwise, start reading selected text
+        readSelectedText()
+    }
+    
+    func stopCurrentPlayback() {
+        print("🛑 Stopping audio playback")
+        
+        // Cancel the current streaming task
+        currentStreamingTask?.cancel()
+        currentStreamingTask = nil
+        
+        // Stop the audio player
+        streamingPlayer?.stopAudioEngine()
+        
+        // Reset playing state
+        isCurrentlyPlaying = false
+        
+        let notification = NSUserNotification()
+        notification.title = "Audio Stopped"
+        notification.informativeText = "Text-to-speech playback stopped"
+        NSUserNotificationCenter.default.deliver(notification)
+    }
+    
+    func readSelectedText() {
+        // Save current clipboard contents first
+        let pasteboard = NSPasteboard.general
+        let savedTypes = pasteboard.types ?? []
+        var savedItems: [NSPasteboard.PasteboardType: Data] = [:]
+        
+        for type in savedTypes {
+            if let data = pasteboard.data(forType: type) {
+                savedItems[type] = data
+            }
+        }
+        
+        print("📋 Saved \(savedItems.count) clipboard types before reading selection")
+        
+        // Simulate Cmd+C to copy selected text
+        let source = CGEventSource(stateID: .hidSystemState)
+        let keyDownC = CGEvent(keyboardEventSource: source, virtualKey: 0x08, keyDown: true) // 'c' key
+        let keyUpC = CGEvent(keyboardEventSource: source, virtualKey: 0x08, keyDown: false)
+        
+        // Set Cmd modifier
+        keyDownC?.flags = .maskCommand
+        keyUpC?.flags = .maskCommand
+        
+        // Post the events
+        keyDownC?.post(tap: .cghidEventTap)
+        keyUpC?.post(tap: .cghidEventTap)
+        
+        // Give system a moment to process the copy command
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+            // Read from clipboard
+            let copiedText = pasteboard.string(forType: .string) ?? ""
+            
+            if !copiedText.isEmpty {
+                print("📖 Selected text for streaming TTS: \(copiedText)")
+                
+                // Try to stream speech with our streaming components
+                if let audioCollector = self?.audioCollector, let streamingPlayer = self?.streamingPlayer {
+                    self?.isCurrentlyPlaying = true
+                    
+                    self?.currentStreamingTask = Task {
+                        do {
+                            let notification = NSUserNotification()
+                            notification.title = "Streaming TTS"
+                            notification.informativeText = "Starting streaming synthesis: \(copiedText.prefix(50))\(copiedText.count > 50 ? "..." : "")"
+                            NSUserNotificationCenter.default.deliver(notification)
+                            
+                            // Stream audio using single API call with model-instructed pauses (50ms pauses)
+                            try await streamingPlayer.playTextWithSentencePauses(copiedText, audioCollector: audioCollector, pauseDurationMs: 0)
+                            
+                            // Check if task was cancelled
+                            if Task.isCancelled {
+                                return
+                            }
+                            
+                            let completionNotification = NSUserNotification()
+                            completionNotification.title = "Streaming TTS Complete"
+                            completionNotification.informativeText = "Finished streaming selected text"
+                            NSUserNotificationCenter.default.deliver(completionNotification)
+                            
+                        } catch is CancellationError {
+                            print("🛑 Audio streaming was cancelled")
+                        } catch {
+                            print("❌ Streaming TTS Error: \(error)")
+                            
+                            let errorNotification = NSUserNotification()
+                            errorNotification.title = "Streaming TTS Error"
+                            errorNotification.informativeText = "Failed to stream text: \(error.localizedDescription)"
+                            NSUserNotificationCenter.default.deliver(errorNotification)
+                            
+                            // Note: Text is already in clipboard from Cmd+C, no need to copy again
+                            let fallbackNotification = NSUserNotification()
+                            fallbackNotification.title = "Text Ready in Clipboard"
+                            fallbackNotification.informativeText = "Streaming failed, selected text copied via Cmd+C"
+                            NSUserNotificationCenter.default.deliver(fallbackNotification)
+                        }
+                        
+                        // Reset playing state when task completes (normally or via cancellation)
+                        DispatchQueue.main.async {
+                            self?.isCurrentlyPlaying = false
+                            self?.currentStreamingTask = nil
+                        }
+                        
+                        // Restore original clipboard contents after streaming
+                        DispatchQueue.main.async {
+                            pasteboard.clearContents()
+                            for (type, data) in savedItems {
+                                pasteboard.setData(data, forType: type)
+                            }
+                            print("♻️ Restored original clipboard contents")
+                        }
+                    }
+                } else {
+                    let notification = NSUserNotification()
+                    notification.title = "Selected Text Copied"
+                    notification.informativeText = "Streaming TTS not available, text copied to clipboard: \(copiedText.prefix(100))\(copiedText.count > 100 ? "..." : "")"
+                    NSUserNotificationCenter.default.deliver(notification)
+                    
+                    // Don't restore clipboard in this case since user might want the copied text
+                }
+            } else {
+                print("⚠️ No text was copied - nothing selected or copy failed")
+                
+                let notification = NSUserNotification()
+                notification.title = "No Text Selected"
+                notification.informativeText = "Please select some text first before using TTS"
+                NSUserNotificationCenter.default.deliver(notification)
+                
+                // Restore clipboard since copy attempt failed
+                pasteboard.clearContents()
+                for (type, data) in savedItems {
+                    pasteboard.setData(data, forType: type)
+                }
+                print("♻️ Restored clipboard after failed copy")
+            }
+        }
+    }
     
     func updateStatusBarWithLevel(db: Float) {
         if let button = statusItem.button {

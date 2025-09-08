@@ -17,3 +17,30 @@
 - Never include Claude attribution or Co-Author information in git commits
 - Keep commit messages clean and professional without AI-related references
 
+## Documentation in Progress
+
+### Gemini Live TTS Integration
+
+**Status**: Complete TTS system ✅ ready for main app integration  
+**Branch**: `gemini-text-to-speech`  
+**Key Files**:
+- `GEMINI_TTS_PLAN.md` - Technical specifications and implementation roadmap
+- `SharedSources/GeminiTTS.swift` - Reusable TTS component with AVAudioEngine
+- `TestGeminiLiveSources/main.swift` - Simple test executable using shared component
+- `.env.example` - API key configuration template
+
+**Progress**:
+- ✅ API research and technical planning completed
+- ✅ Complete WebSocket connection with JSON parsing and base64 audio decoding
+- ✅ AVAudioEngine playback pipeline with 15% speed boost via TimePitch effect
+- ✅ Shared GeminiTTS component extracted for main app reuse
+- 🔄 Next: Add Cmd+Opt+S keyboard shortcut for selected text speech
+
+**Test Command**: `swift run TestGeminiLive`
+
+**Keyboard Shortcut Implementation**:
+- **Target**: Cmd+Opt+S for reading selected text aloud
+- **Feasible**: ✅ Yes - app already has Cmd+Opt+Z/A shortcuts using KeyboardShortcuts library
+- **Integration**: Add GeminiTTS to main app, capture selected text via accessibility APIs, trigger TTS
+- **Reference**: See existing shortcuts in `Sources/main.swift:45-49`
+

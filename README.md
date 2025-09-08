@@ -1,6 +1,6 @@
 # Super Voice Assistant
 
-A native macOS voice assistant with voice-to-text transcription and streaming text-to-speech capabilities.
+macOS voice assistant with global hotkeys - transcribe speech to text with offline models into the current cursor and read selected text out loud with live Gemini models.
 
 ## Features
 

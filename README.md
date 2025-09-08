@@ -2,6 +2,10 @@
 
 macOS voice assistant with global hotkeys - transcribe speech to text with offline models into the current cursor and read selected text out loud with live Gemini models.
 
+## Demo (instant text-to-speech)
+
+https://github.com/user-attachments/assets/c961f0c6-f3b3-49d9-9b42-7a7d93ee6bc8
+
 ## Features
 
 **Voice-to-Text Transcription**

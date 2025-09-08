@@ -128,16 +128,6 @@ swift run TestAudioCollector
 swift run TestSentenceSplitter
 ```
 
-
-## Tech Stack
-
-- **Language**: Swift
-- **UI Framework**: AppKit (Cocoa)  
-- **Speech Recognition**: [WhisperKit](https://github.com/argmaxinc/WhisperKit)
-- **Text-to-Speech**: Gemini Live API with streaming WebSocket
-- **Audio Processing**: AVAudioEngine with TimePitch effects
-- **Global Hotkeys**: [KeyboardShortcuts](https://github.com/sindresorhus/KeyboardShortcuts)
-
 ## Project Structure
 
 - `Sources/` - Main app code with TTS integration

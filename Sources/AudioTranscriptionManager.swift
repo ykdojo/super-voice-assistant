@@ -37,6 +37,24 @@ class AudioTranscriptionManager {
     private func setupAudioEngine() {
         audioEngine = AVAudioEngine()
         inputNode = audioEngine.inputNode
+        configureInputDevice()
+    }
+    
+    private func configureInputDevice() {
+        let deviceManager = AudioDeviceManager.shared
+        
+        guard !deviceManager.useSystemDefaultInput,
+              let device = deviceManager.getCurrentInputDevice(),
+              let deviceID = deviceManager.getAudioDeviceID(for: device.uid) else {
+            return
+        }
+        
+        do {
+            try inputNode.auAudioUnit.setDeviceID(deviceID)
+            print("✅ Set input device to: \(device.name)")
+        } catch {
+            print("❌ Failed to set input device: \(error)")
+        }
     }
     
     private func requestMicrophonePermission() {
@@ -73,6 +91,9 @@ class AudioTranscriptionManager {
     
     func startRecording() {
         audioBuffer.removeAll()
+        
+        // Reconfigure input device in case settings changed
+        configureInputDevice()
         
         // Set up global Escape key monitor to cancel recording
         escapeKeyMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in

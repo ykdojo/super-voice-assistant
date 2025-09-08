@@ -19,9 +19,31 @@ public class GeminiStreamingPlayer {
         audioEngine.attach(timePitchEffect)
         audioEngine.connect(playerNode, to: timePitchEffect, format: audioFormat)
         audioEngine.connect(timePitchEffect, to: audioEngine.mainMixerNode, format: audioFormat)
+        
+        // Don't configure on init to avoid crashes, will configure when starting engine
+    }
+    
+    private func configureOutputDevice() {
+        let deviceManager = AudioDeviceManager.shared
+        
+        guard !deviceManager.useSystemDefaultOutput,
+              let device = deviceManager.getCurrentOutputDevice(),
+              let deviceID = deviceManager.getAudioDeviceID(for: device.uid) else {
+            return
+        }
+        
+        do {
+            try audioEngine.outputNode.auAudioUnit.setDeviceID(deviceID)
+            print("✅ Set output device to: \(device.name)")
+        } catch {
+            print("❌ Failed to set output device: \(error)")
+        }
     }
     
     private func startAudioEngine() throws {
+        // Reconfigure output device in case settings changed
+        configureOutputDevice()
+        
         if !audioEngine.isRunning {
             try audioEngine.start()
         }

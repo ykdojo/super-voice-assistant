@@ -5,6 +5,7 @@ enum ManagerTab: Int {
     case settings = 0
     case history = 1
     case statistics = 2
+    case audioDevices = 3
 }
 
 class UnifiedManagerWindow: NSWindowController {
@@ -12,6 +13,7 @@ class UnifiedManagerWindow: NSWindowController {
     private var historyViewController: TranscriptionHistoryViewController?
     private var statsViewController: StatsViewController?
     private var settingsController: SettingsWindowController?
+    private var audioDevicesViewController: AudioDevicesViewController?
     
     override init(window: NSWindow?) {
         // Create the main window
@@ -61,6 +63,13 @@ class UnifiedManagerWindow: NSWindowController {
         statsTab.label = "Statistics"
         statsTab.image = NSImage(systemSymbolName: "chart.bar", accessibilityDescription: "Statistics")
         tabViewController.addTabViewItem(statsTab)
+        
+        // Audio Devices Tab
+        audioDevicesViewController = AudioDevicesViewController()
+        let audioDevicesTab = NSTabViewItem(viewController: audioDevicesViewController!)
+        audioDevicesTab.label = "Audio Devices"
+        audioDevicesTab.image = NSImage(systemSymbolName: "speaker.wave.2", accessibilityDescription: "Audio Devices")
+        tabViewController.addTabViewItem(audioDevicesTab)
         
         window?.contentViewController = tabViewController
     }

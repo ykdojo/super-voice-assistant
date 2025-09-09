@@ -199,13 +199,23 @@ class AudioTranscriptionManager {
             delegate?.recordingWasSkippedDueToSilence()
             return
         }
+
+        // Skip extremely short recordings to avoid spurious transcriptions
+        let durationSeconds = Double(audioBuffer.count) / sampleRate
+        let minDurationSeconds: Double = 0.30
+        if durationSeconds < minDurationSeconds {
+            print("Recording too short (\(String(format: "%.2f", durationSeconds))s). Skipping transcription.")
+            delegate?.recordingWasSkippedDueToSilence()
+            return
+        }
         
         // Calculate RMS (Root Mean Square) to detect silence
         let rms = sqrt(audioBuffer.reduce(0) { $0 + $1 * $1 } / Float(audioBuffer.count))
         let db = 20 * log10(max(rms, 0.00001))
         
-        // Threshold for silence detection (conservative: -55dB to avoid false positives)
-        let silenceThreshold: Float = -55.0
+        // Threshold for silence detection (stricter to avoid false positives)
+        // Raise from -55dB to -48dB so low-level noise doesn't trigger transcription
+        let silenceThreshold: Float = -48.0
         
         if db < silenceThreshold {
             print("Audio too quiet (RMS: \(rms), dB: \(db)). Skipping transcription.")

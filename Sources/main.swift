@@ -97,6 +97,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
         
         // Set up keyboard shortcut handlers
         KeyboardShortcuts.onKeyUp(for: .startRecording) { [weak self] in
+            // If about to start a fresh recording, make sure any previous
+            // processing indicator is stopped and UI is reset.
+            if let isRecording = self?.audioManager.isRecording, !isRecording {
+                self?.stopTranscriptionIndicator()
+            }
             self?.audioManager.toggleRecording()
         }
         
@@ -357,10 +362,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
         transcriptionTimer?.invalidate()
         transcriptionTimer = nil
         
-        // Reset to default icon
-        if let button = statusItem.button {
-            button.image = NSImage(systemSymbolName: "waveform", accessibilityDescription: "Voice Assistant")
-            button.title = ""
+        // If not currently recording, reset to default icon.
+        // When recording, the live level updates will take over UI shortly.
+        if audioManager?.isRecording != true {
+            if let button = statusItem.button {
+                button.image = NSImage(systemSymbolName: "waveform", accessibilityDescription: "Voice Assistant")
+                button.title = ""
+            }
         }
     }
     
@@ -490,6 +498,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
     }
     
     func recordingWasCancelled() {
+        // Ensure any processing indicator is stopped
+        stopTranscriptionIndicator()
         // Reset the status bar icon
         if let button = statusItem.button {
             button.image = NSImage(systemSymbolName: "waveform", accessibilityDescription: "Voice Assistant")
@@ -504,6 +514,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
     }
     
     func recordingWasSkippedDueToSilence() {
+        // Ensure any processing indicator is stopped
+        stopTranscriptionIndicator()
         // Reset the status bar icon
         if let button = statusItem.button {
             button.image = NSImage(systemSymbolName: "waveform", accessibilityDescription: "Voice Assistant")

@@ -195,6 +195,8 @@ class AudioTranscriptionManager {
     private func processRecording() async {
         guard !audioBuffer.isEmpty else {
             print("No audio recorded")
+            // Nothing to transcribe; ensure UI resets
+            delegate?.recordingWasSkippedDueToSilence()
             return
         }
         
@@ -267,6 +269,8 @@ class AudioTranscriptionManager {
                     delegate?.transcriptionDidComplete(text: transcription)
                 } else {
                     print("No transcription generated (possibly silence)")
+                    // Reset UI and avoid leaving the processing indicator running
+                    delegate?.recordingWasSkippedDueToSilence()
                 }
             }
         } catch {

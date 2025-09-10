@@ -3,7 +3,7 @@
 # Generate ICNS file for macOS from the logo
 # This creates a proper .icns file that can be used as the app icon
 
-SOURCE_IMAGE="logo_no_bg_edited.png"
+SOURCE_IMAGE="logos/logo_no_bg_edited.png"
 ICONSET_DIR="AppIcon.iconset"
 OUTPUT_ICNS="AppIcon.icns"
 

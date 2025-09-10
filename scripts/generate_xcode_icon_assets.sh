@@ -3,7 +3,7 @@
 # Generate all required icon sizes for macOS app from logo_no_bg_edited.png
 # Uses sips (built-in macOS image processing tool)
 
-SOURCE_IMAGE="logo_no_bg_edited.png"
+SOURCE_IMAGE="logos/logo_no_bg_edited.png"
 ICON_DIR="Sources/Assets.xcassets/AppIcon.appiconset"
 
 # Check if source image exists

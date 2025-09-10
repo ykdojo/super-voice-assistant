@@ -258,8 +258,8 @@ class AudioTranscriptionManager {
                     usePrefillPrompt: true,
                     usePrefillCache: true,
                     skipSpecialTokens: true,
-                    withoutTimestamps: false,
-                    clipTimestamps: [0],
+                    withoutTimestamps: true,
+                    clipTimestamps: [],
                     suppressBlank: true,
                     supressTokens: nil
                 )

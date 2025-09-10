@@ -70,19 +70,19 @@ let package = Package(
         .executableTarget(
             name: "ListModels",
             dependencies: ["WhisperKit", "SharedModels"],
-            path: "ListModelsSources"),
+            path: "tools/list-models"),
         .executableTarget(
             name: "DeleteModels",
             dependencies: ["SharedModels"],
-            path: "DeleteModelsSources"),
+            path: "tools/delete-models"),
         .executableTarget(
             name: "DeleteModel",
             dependencies: ["SharedModels"],
-            path: "DeleteModelSources"),
+            path: "tools/delete-model"),
         .executableTarget(
             name: "ValidateModels",
             dependencies: ["WhisperKit", "SharedModels"],
-            path: "ValidateModelsSources"),
+            path: "tools/validate-models"),
         .executableTarget(
             name: "TestTranscription",
             dependencies: ["WhisperKit", "SharedModels"],

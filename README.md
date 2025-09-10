@@ -148,8 +148,11 @@ swift run TestSentenceSplitter
   - `test-transcription/` - Transcription functionality test
   - `test-live-transcription/` - Live transcription test
   - `test-audio-analysis/` - Audio analysis test
-- Model management utilities:
-  - `ListModelsSources/`, `ValidateModelsSources/`, `DeleteModelsSources/`
+- `tools/` - Model management utilities:
+  - `list-models/` - List available WhisperKit models
+  - `validate-models/` - Validate downloaded models  
+  - `delete-models/` - Delete all downloaded models
+  - `delete-model/` - Delete a specific model
 - `scripts/` - Build and icon generation scripts
 - `logos/` - Logo and branding assets
 

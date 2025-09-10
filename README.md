@@ -140,13 +140,18 @@ swift run TestSentenceSplitter
   - `GeminiAudioCollector.swift` - Audio collection and WebSocket handling
   - `SmartSentenceSplitter.swift` - Text processing for optimal speech
   - `AudioDeviceManager.swift` - Audio device configuration
-- Test utilities:
-  - `TestSources/` - Model download test
-  - `TestStreamingTTSSources/` - TTS functionality test
-  - `TestAudioCollectorSources/` - Audio collection test
-  - `TestSentenceSplitterSources/` - Sentence splitting test
+- `tests/` - Test utilities organized by functionality:
+  - `test-download/` - Model download test
+  - `test-streaming-tts/` - TTS functionality test
+  - `test-audio-collector/` - Audio collection test
+  - `test-sentence-splitter/` - Sentence splitting test
+  - `test-transcription/` - Transcription functionality test
+  - `test-live-transcription/` - Live transcription test
+  - `test-audio-analysis/` - Audio analysis test
 - Model management utilities:
   - `ListModelsSources/`, `ValidateModelsSources/`, `DeleteModelsSources/`
+- `scripts/` - Build and icon generation scripts
+- `logos/` - Logo and branding assets
 
 ## License
 

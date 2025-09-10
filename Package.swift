@@ -66,7 +66,7 @@ let package = Package(
         .executableTarget(
             name: "TestDownload",
             dependencies: ["WhisperKit", "SharedModels"],
-            path: "TestSources"),
+            path: "tests/test-download"),
         .executableTarget(
             name: "ListModels",
             dependencies: ["WhisperKit", "SharedModels"],
@@ -86,22 +86,22 @@ let package = Package(
         .executableTarget(
             name: "TestTranscription",
             dependencies: ["WhisperKit", "SharedModels"],
-            path: "TestTranscriptionSources"),
+            path: "tests/test-transcription"),
         .executableTarget(
             name: "TestLiveTranscription",
             dependencies: ["WhisperKit", "SharedModels"],
-            path: "TestLiveTranscriptionSources"),
+            path: "tests/test-live-transcription"),
         .executableTarget(
             name: "TestAudioCollector",
             dependencies: ["SharedModels"],
-            path: "TestAudioCollectorSources"),
+            path: "tests/test-audio-collector"),
         .executableTarget(
             name: "TestStreamingTTS",
             dependencies: ["SharedModels"],
-            path: "TestStreamingTTSSources"),
+            path: "tests/test-streaming-tts"),
         .executableTarget(
             name: "TestSentenceSplitter",
             dependencies: ["SharedModels"],
-            path: "TestSentenceSplitterSources")
+            path: "tests/test-sentence-splitter")
     ]
 )

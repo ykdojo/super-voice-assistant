@@ -3,6 +3,10 @@ import Foundation
 @available(macOS 14.0, *)
 public class GeminiAudioCollector {
     private let apiKey: String
+    // Reuse a single WebSocket session to avoid per-sentence handshake overhead
+    private var webSocketTask: URLSessionWebSocketTask?
+    private var didSendSetup: Bool = false
+    private let session = URLSession.shared
     
     public init(apiKey: String) {
         self.apiKey = apiKey
@@ -27,40 +31,44 @@ public class GeminiAudioCollector {
             throw GeminiAudioCollectorError.invalidURL
         }
         
-        let session = URLSession.shared
-        let webSocketTask = session.webSocketTask(with: url)
-        webSocketTask.resume()
-        
-        defer {
-            webSocketTask.cancel(with: .goingAway, reason: nil)
+        // Ensure a single, reusable WebSocket connection
+        if webSocketTask == nil {
+            let task = session.webSocketTask(with: url)
+            task.resume()
+            webSocketTask = task
+            didSendSetup = false
+        }
+        guard let webSocketTask else {
+            throw GeminiAudioCollectorError.invalidURL
         }
         
         do {
-            // Send setup message
-            let setupMessage = """
-            {
-                "setup": {
-                    "model": "models/gemini-2.0-flash-live-001",
-                    "generation_config": {
-                        "response_modalities": ["AUDIO"],
-                        "speech_config": {
-                            "voice_config": {
-                                "prebuilt_voice_config": {
-                                    "voice_name": "Aoede"
+            // Send setup message only once per socket
+            if !didSendSetup {
+                let setupMessage = """
+                {
+                    "setup": {
+                        "model": "models/gemini-2.0-flash-live-001",
+                        "generation_config": {
+                            "response_modalities": ["AUDIO"],
+                            "speech_config": {
+                                "voice_config": {
+                                    "prebuilt_voice_config": {
+                                        "voice_name": "Aoede"
+                                    }
                                 }
                             }
                         }
                     }
                 }
+                """
+                try await webSocketTask.send(.string(setupMessage))
+                // Wait for setup confirmation
+                _ = try await webSocketTask.receive()
+                didSendSetup = true
             }
-            """
             
-            try await webSocketTask.send(.string(setupMessage))
-            
-            // Wait for setup confirmation
-            _ = try await webSocketTask.receive()
-            
-            // Send text for TTS
+            // Send text for TTS for this turn
             let textMessage = """
             {
                 "client_content": {
@@ -78,12 +86,10 @@ public class GeminiAudioCollector {
                 }
             }
             """
-            
             try await webSocketTask.send(.string(textMessage))
             
-            // Collect audio chunks and yield them immediately
+            // Collect audio chunks and yield them immediately for this turn
             var isComplete = false
-            
             while !isComplete {
                 let message = try await webSocketTask.receive()
                 
@@ -128,8 +134,6 @@ public class GeminiAudioCollector {
                 @unknown default:
                     break
                 }
-                
-                try await Task.sleep(nanoseconds: 10_000_000) // 10ms polling
             }
             
             print("✅ Audio collection complete")

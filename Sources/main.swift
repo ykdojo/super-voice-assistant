@@ -239,8 +239,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
                             notification.informativeText = "Starting streaming synthesis: \(copiedText.prefix(50))\(copiedText.count > 50 ? "..." : "")"
                             NSUserNotificationCenter.default.deliver(notification)
                             
-                            // Stream audio using single API call with model-instructed pauses (50ms pauses)
-                            try await streamingPlayer.playTextWithSentencePauses(copiedText, audioCollector: audioCollector, pauseDurationMs: 0)
+                            // Stream audio using single API call for all text at once
+                            try await streamingPlayer.playText(copiedText, audioCollector: audioCollector)
                             
                             // Check if task was cancelled
                             if Task.isCancelled {
@@ -314,8 +314,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
         if let button = statusItem.button {
             button.image = nil
             
-            // Convert dB to a 0-1 range (assuming -50dB to -20dB for normal speech)
-            let normalizedLevel = max(0, min(1, (db + 50) / 30))
+            // Convert dB to a 0-1 range (assuming -55dB to -20dB for normal speech)
+            let normalizedLevel = max(0, min(1, (db + 55) / 35))
             
             // Create a visual bar using Unicode block characters
             let barLength = 8

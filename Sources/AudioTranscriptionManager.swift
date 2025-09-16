@@ -214,8 +214,8 @@ class AudioTranscriptionManager {
         let db = 20 * log10(max(rms, 0.00001))
         
         // Threshold for silence detection (stricter to avoid false positives)
-        // Raise from -55dB to -48dB so low-level noise doesn't trigger transcription
-        let silenceThreshold: Float = -48.0
+        // Lowered to -55dB to capture quieter audio
+        let silenceThreshold: Float = -55.0
         
         if db < silenceThreshold {
             print("Audio too quiet (RMS: \(rms), dB: \(db)). Skipping transcription.")

@@ -101,96 +101,51 @@ public class GeminiStreamingPlayer {
         }
     }
     
-    public func playTextWithSentencePauses(_ text: String, audioCollector: GeminiAudioCollector, pauseDurationMs: Int = 0) async throws {
+    public func playText(_ text: String, audioCollector: GeminiAudioCollector) async throws {
         try startAudioEngine()
         
-        // Split text into sentences
+        // Split text into sentences and rejoin with line breaks for natural pauses
         let sentences = SmartSentenceSplitter.splitIntoSentences(text)
         print("📖 Split text into \(sentences.count) sentences")
         
-        if sentences.isEmpty {
-            return
-        }
+        // Join sentences with triple line breaks to encourage model to add longer pauses
+        let formattedText = sentences.joined(separator: "\n\n\n")
+        print("📝 Formatted text with line breaks between sentences")
         
         var isFirstChunk = true
-        var currentIndex = 0
-        // Process strictly sequentially to avoid concurrent WebSocket connections
-        while currentIndex < sentences.count {
-            print("🔊 Processing sentence \(currentIndex + 1)/\(sentences.count)")
-            var sentenceBytesPlayed = 0
-            
-            // Start collection for this sentence
-            let currentStream = audioCollector.collectAudioChunks(from: sentences[currentIndex]) { result in
-                switch result {
-                case .success:
-                    print("✅ Audio collection complete for sentence \(currentIndex + 1)")
-                case .failure(let error):
-                    print("❌ Audio collection failed for sentence \(currentIndex + 1): \(error)")
-                }
-            }
-            
-            // Stream and play this sentence's audio chunks as they arrive
-            for try await chunk in currentStream {
-                try Task.checkCancellation()
-                
-                let buffer = try createPCMBuffer(from: chunk)
-                
-                if isFirstChunk {
-                    print("▶️ Starting playback")
-                    playerNode.play()
-                    isFirstChunk = false
-                }
-                
-                playerNode.scheduleBuffer(buffer, completionHandler: nil)
-                sentenceBytesPlayed += chunk.count
-                
-                // Small pacing to avoid overwhelming scheduling
-                try await Task.sleep(nanoseconds: 1_000_000) // 1ms between chunks
-            }
-            
-            print("✅ Sentence \(currentIndex + 1) playback complete: \(sentenceBytesPlayed) bytes")
-            
-            // Add pause between sentences (except after the last sentence)
-            if currentIndex < sentences.count - 1 {
-                if pauseDurationMs > 0 {
-                    print("⏸️ Adding \(pauseDurationMs)ms pause between sentences")
-                    try await addSentencePause(pauseDurationMs: pauseDurationMs)
-                } else {
-                    print("⏭️ No pause between sentences")
-                }
-            }
-            
-            // Advance to next sentence
-            currentIndex += 1
-        }
+        var totalBytesPlayed = 0
         
-        print("🎉 All sentences completed (sequential streaming)")
-    }
-    
-    private func addSentencePause(pauseDurationMs: Int) async throws {
-        guard pauseDurationMs > 0 else { return }
-        // Create a silent buffer for the pause
-        let sampleRate = audioFormat.sampleRate
-        let pauseSamples = Int(sampleRate * Double(pauseDurationMs) / 1000.0)
-        
-        guard let silenceBuffer = AVAudioPCMBuffer(pcmFormat: audioFormat, frameCapacity: UInt32(pauseSamples)) else {
-            return // Skip pause if we can't create buffer
-        }
-        
-        silenceBuffer.frameLength = UInt32(pauseSamples)
-        
-        // Clear the buffer to create silence
-        if let channelData = silenceBuffer.floatChannelData {
-            for channel in 0..<Int(audioFormat.channelCount) {
-                memset(channelData[channel], 0, Int(pauseSamples) * MemoryLayout<Float>.size)
+        // Start collection for the formatted text (all at once)
+        let audioStream = audioCollector.collectAudioChunks(from: formattedText) { result in
+            switch result {
+            case .success:
+                print("✅ Audio collection complete")
+            case .failure(let error):
+                print("❌ Audio collection failed: \(error)")
             }
         }
         
-        // Schedule the silence buffer
-        playerNode.scheduleBuffer(silenceBuffer, completionHandler: nil)
+        // Stream and play audio chunks as they arrive
+        for try await chunk in audioStream {
+            try Task.checkCancellation()
+            
+            let buffer = try createPCMBuffer(from: chunk)
+            
+            if isFirstChunk {
+                print("▶️ Starting playback")
+                playerNode.play()
+                isFirstChunk = false
+            }
+            
+            playerNode.scheduleBuffer(buffer, completionHandler: nil)
+            totalBytesPlayed += chunk.count
+            
+            // Small pacing to avoid overwhelming scheduling
+            try await Task.sleep(nanoseconds: 1_000_000) // 1ms between chunks
+        }
         
-        // Wait for the pause duration
-        try await Task.sleep(nanoseconds: UInt64(pauseDurationMs * 1_000_000))
+        print("✅ Playback complete: \(totalBytesPlayed) bytes")
+        print("🎉 Full text streaming completed")
     }
     
     private func createPCMBuffer(from audioData: Data) throws -> AVAudioPCMBuffer {

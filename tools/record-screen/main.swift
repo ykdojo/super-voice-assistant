@@ -5,24 +5,80 @@ import Foundation
 print("🎥 Recording screen for 3 seconds...")
 print("====================================\n")
 
+// First, list all available devices
+func listDevices() {
+    let listProcess = Process()
+    listProcess.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+    listProcess.arguments = ["ffmpeg", "-f", "avfoundation", "-list_devices", "true", "-i", ""]
+
+    let pipe = Pipe()
+    listProcess.standardError = pipe
+
+    do {
+        try listProcess.run()
+        listProcess.waitUntilExit()
+
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        let output = String(data: data, encoding: .utf8) ?? ""
+
+        print("📱 Available Devices:")
+        print("-------------------")
+
+        var inVideoSection = false
+        var inAudioSection = false
+
+        for line in output.components(separatedBy: "\n") {
+            if line.contains("AVFoundation video devices:") {
+                inVideoSection = true
+                inAudioSection = false
+                print("\nVideo devices:")
+                continue
+            }
+            if line.contains("AVFoundation audio devices:") {
+                inVideoSection = false
+                inAudioSection = true
+                print("\nAudio devices:")
+                continue
+            }
+
+            if (inVideoSection || inAudioSection) && line.contains("[") && line.contains("]") {
+                let trimmed = line.trimmingCharacters(in: .whitespaces)
+                if let range = trimmed.range(of: "\\[\\d+\\].*", options: .regularExpression) {
+                    print("  " + String(trimmed[range]))
+                }
+            }
+        }
+        print("\n")
+    } catch {
+        print("⚠️  Could not list devices: \(error)\n")
+    }
+}
+
+listDevices()
+
 let timestamp = DateFormatter()
 timestamp.dateFormat = "yyyy-MM-dd_HH-mm-ss"
 let filename = "screen-recording-\(timestamp.string(from: Date())).mp4"
 let desktopPath = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Desktop")
 let outputPath = desktopPath.appendingPathComponent(filename)
 
-print("Output: \(outputPath.path)\n")
+print("🎬 Recording Configuration:")
+print("  Video: Device index 4 (screen capture)")
+print("  Audio: Device index 1 (MacBook Pro Microphone)")
+print("  Output: \(outputPath.path)\n")
 
 let process = Process()
 process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
 process.arguments = [
     "ffmpeg",
     "-f", "avfoundation",
-    "-i", "4:none",           // Capture screen 0, no audio
-    "-t", "3",                // Duration: 3 seconds
-    "-vcodec", "h264",        // Video codec
-    "-pix_fmt", "yuv420p",    // Pixel format for compatibility
-    "-y",                     // Overwrite output file if exists
+    "-capture_cursor", "1",    // Show cursor in recording
+    "-i", "4:1",               // Capture screen + MacBook Pro Microphone
+    "-t", "3",                 // Duration: 3 seconds
+    "-vcodec", "h264",         // Video codec
+    "-acodec", "aac",          // Audio codec
+    "-pix_fmt", "yuv420p",     // Pixel format for compatibility
+    "-y",                      // Overwrite output file if exists
     outputPath.path
 ]
 

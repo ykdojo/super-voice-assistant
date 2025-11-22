@@ -36,6 +36,7 @@ extension KeyboardShortcuts.Name {
     static let startRecording = Self("startRecording")
     static let showHistory = Self("showHistory")
     static let readSelectedText = Self("readSelectedText")
+    static let takeScreenshot = Self("takeScreenshot")
 }
 
 class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDelegate {
@@ -82,6 +83,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
         menu.addItem(NSMenuItem(title: "Recording: Press Command+Option+Z", action: nil, keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "History: Press Command+Option+A", action: nil, keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "Read Selected Text: Press Command+Option+S", action: nil, keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "Take Screenshot: Press Command+Option+X", action: nil, keyEquivalent: ""))
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Settings...", action: #selector(openSettings), keyEquivalent: ","))
         menu.addItem(NSMenuItem(title: "View History...", action: #selector(showTranscriptionHistory), keyEquivalent: "h"))
@@ -94,6 +96,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
         KeyboardShortcuts.setShortcut(.init(.z, modifiers: [.command, .option]), for: .startRecording)
         KeyboardShortcuts.setShortcut(.init(.a, modifiers: [.command, .option]), for: .showHistory)
         KeyboardShortcuts.setShortcut(.init(.s, modifiers: [.command, .option]), for: .readSelectedText)
+        KeyboardShortcuts.setShortcut(.init(.x, modifiers: [.command, .option]), for: .takeScreenshot)
         
         // Set up keyboard shortcut handlers
         KeyboardShortcuts.onKeyUp(for: .startRecording) { [weak self] in
@@ -112,7 +115,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
         KeyboardShortcuts.onKeyUp(for: .readSelectedText) { [weak self] in
             self?.handleReadSelectedTextToggle()
         }
-        
+
+        KeyboardShortcuts.onKeyUp(for: .takeScreenshot) { [weak self] in
+            self?.takeInstantScreenshot()
+        }
+
         // Set up audio manager
         audioManager = AudioTranscriptionManager()
         audioManager.delegate = self
@@ -193,6 +200,107 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
         NSUserNotificationCenter.default.deliver(notification)
     }
     
+    func takeInstantScreenshot() {
+        // Take a screenshot of all displays
+        let displayCount = CGDisplayCreateImage(CGMainDisplayID()) != nil ? 1 : 0
+
+        // Get all active displays
+        var displayIDs = [CGDirectDisplayID](repeating: 0, count: 10)
+        var displayCount32: UInt32 = 0
+        CGGetActiveDisplayList(10, &displayIDs, &displayCount32)
+
+        var screenshots: [NSImage] = []
+
+        // Capture each display
+        for i in 0..<Int(displayCount32) {
+            if let screenShot = CGDisplayCreateImage(displayIDs[i]) {
+                let nsImage = NSImage(cgImage: screenShot, size: NSSize(width: screenShot.width, height: screenShot.height))
+                screenshots.append(nsImage)
+            }
+        }
+
+        guard !screenshots.isEmpty else {
+            let notification = NSUserNotification()
+            notification.title = "Screenshot Failed"
+            notification.informativeText = "Unable to capture screen"
+            NSUserNotificationCenter.default.deliver(notification)
+            return
+        }
+
+        // If multiple displays, combine them horizontally
+        let finalImage: NSImage
+        if screenshots.count > 1 {
+            // Calculate total width and max height
+            let totalWidth = screenshots.reduce(0) { $0 + $1.size.width }
+            let maxHeight = screenshots.map { $0.size.height }.max() ?? 0
+
+            finalImage = NSImage(size: NSSize(width: totalWidth, height: maxHeight))
+            finalImage.lockFocus()
+
+            var xOffset: CGFloat = 0
+            for screenshot in screenshots {
+                screenshot.draw(at: NSPoint(x: xOffset, y: 0),
+                              from: NSRect.zero,
+                              operation: .sourceOver,
+                              fraction: 1.0)
+                xOffset += screenshot.size.width
+            }
+
+            finalImage.unlockFocus()
+        } else {
+            finalImage = screenshots[0]
+        }
+
+        // Save to Desktop
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd_HH-mm-ss"
+        let timestamp = dateFormatter.string(from: Date())
+        let fileName = "Screenshot_\(timestamp).png"
+        let desktopPath = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Desktop")
+        let fileURL = desktopPath.appendingPathComponent(fileName)
+        let filePath = fileURL.path
+
+        // Convert to PNG data
+        guard let tiffData = finalImage.tiffRepresentation,
+              let bitmapRep = NSBitmapImageRep(data: tiffData),
+              let pngData = bitmapRep.representation(using: .png, properties: [:]) else {
+            let notification = NSUserNotification()
+            notification.title = "Screenshot Failed"
+            notification.informativeText = "Unable to process screenshot"
+            NSUserNotificationCenter.default.deliver(notification)
+            return
+        }
+
+        do {
+            // Save to file
+            try pngData.write(to: URL(fileURLWithPath: filePath))
+
+            // Copy to clipboard
+            let pasteboard = NSPasteboard.general
+            pasteboard.clearContents()
+            pasteboard.setData(pngData, forType: .png)
+
+            // Play sound effect
+            NSSound(named: "Grab")?.play()
+
+            // Show notification
+            let notification = NSUserNotification()
+            notification.title = "Screenshot Captured"
+            notification.informativeText = "Saved to: \(fileName)"
+            notification.subtitle = "Copied to clipboard"
+            notification.soundName = nil // We're playing our own sound
+            NSUserNotificationCenter.default.deliver(notification)
+
+            print("📸 Screenshot saved to: \(filePath)")
+
+        } catch {
+            let notification = NSUserNotification()
+            notification.title = "Screenshot Failed"
+            notification.informativeText = "Unable to save screenshot: \(error.localizedDescription)"
+            NSUserNotificationCenter.default.deliver(notification)
+        }
+    }
+
     func readSelectedText() {
         // Save current clipboard contents first
         let pasteboard = NSPasteboard.general

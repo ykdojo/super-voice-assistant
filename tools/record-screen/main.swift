@@ -5,56 +5,7 @@ import Foundation
 print("🎥 Recording screen for 3 seconds...")
 print("====================================\n")
 
-// First, list all available devices
-func listDevices() {
-    let listProcess = Process()
-    listProcess.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-    listProcess.arguments = ["ffmpeg", "-f", "avfoundation", "-list_devices", "true", "-i", ""]
-
-    let pipe = Pipe()
-    listProcess.standardError = pipe
-
-    do {
-        try listProcess.run()
-        listProcess.waitUntilExit()
-
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        let output = String(data: data, encoding: .utf8) ?? ""
-
-        print("📱 Available Devices:")
-        print("-------------------")
-
-        var inVideoSection = false
-        var inAudioSection = false
-
-        for line in output.components(separatedBy: "\n") {
-            if line.contains("AVFoundation video devices:") {
-                inVideoSection = true
-                inAudioSection = false
-                print("\nVideo devices:")
-                continue
-            }
-            if line.contains("AVFoundation audio devices:") {
-                inVideoSection = false
-                inAudioSection = true
-                print("\nAudio devices:")
-                continue
-            }
-
-            if (inVideoSection || inAudioSection) && line.contains("[") && line.contains("]") {
-                let trimmed = line.trimmingCharacters(in: .whitespaces)
-                if let range = trimmed.range(of: "\\[\\d+\\].*", options: .regularExpression) {
-                    print("  " + String(trimmed[range]))
-                }
-            }
-        }
-        print("\n")
-    } catch {
-        print("⚠️  Could not list devices: \(error)\n")
-    }
-}
-
-listDevices()
+// Note: To list available devices, run: ffmpeg -f avfoundation -list_devices true -i ""
 
 let timestamp = DateFormatter()
 timestamp.dateFormat = "yyyy-MM-dd_HH-mm-ss"

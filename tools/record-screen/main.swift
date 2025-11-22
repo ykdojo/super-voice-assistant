@@ -33,8 +33,33 @@ process.arguments = [
     outputPath.path
 ]
 
+// Redirect stdin to /dev/null to prevent ffmpeg from waiting for input
+let devNull = FileHandle(forReadingAtPath: "/dev/null")
+process.standardInput = devNull
+
 do {
     try process.run()
+
+    // Wait with timeout
+    let maxWaitTime = 10.0 // 10 seconds max (3s recording + overhead)
+    let startTime = Date()
+
+    while process.isRunning {
+        if Date().timeIntervalSince(startTime) > maxWaitTime {
+            print("\n⚠️  Recording timed out - killing process")
+            process.terminate()
+            Thread.sleep(forTimeInterval: 0.5)
+            if process.isRunning {
+                process.interrupt()
+            }
+            print("\n❌ Recording failed: timeout waiting for ffmpeg")
+            print("\nNote: Check System Settings → Privacy & Security → Screen Recording")
+            print("      Make sure 'Terminal' or your terminal app has permission")
+            exit(1)
+        }
+        Thread.sleep(forTimeInterval: 0.1)
+    }
+
     process.waitUntilExit()
 
     if process.terminationStatus == 0 {

@@ -64,7 +64,7 @@ let outputPath = desktopPath.appendingPathComponent(filename)
 
 print("🎬 Recording Configuration:")
 print("  Video: Device index 4 (screen capture)")
-print("  Audio: Device index 1 (MacBook Pro Microphone)")
+print("  Audio: System default input device")
 print("  Output: \(outputPath.path)\n")
 
 let process = Process()
@@ -73,7 +73,7 @@ process.arguments = [
     "ffmpeg",
     "-f", "avfoundation",
     "-capture_cursor", "1",    // Show cursor in recording
-    "-i", "4:1",               // Capture screen + MacBook Pro Microphone
+    "-i", "4:default",         // Capture screen + system default audio input
     "-t", "3",                 // Duration: 3 seconds
     "-vcodec", "h264",         // Video codec
     "-acodec", "aac",          // Audio codec

@@ -42,6 +42,9 @@ let package = Package(
         .executable(
             name: "TestSentenceSplitter",
             targets: ["TestSentenceSplitter"]),
+        .executable(
+            name: "RecordScreen",
+            targets: ["RecordScreen"]),
         .library(
             name: "SharedModels",
             targets: ["SharedModels"])
@@ -102,6 +105,10 @@ let package = Package(
         .executableTarget(
             name: "TestSentenceSplitter",
             dependencies: ["SharedModels"],
-            path: "tests/test-sentence-splitter")
+            path: "tests/test-sentence-splitter"),
+        .executableTarget(
+            name: "RecordScreen",
+            dependencies: [],
+            path: "tools/record-screen")
     ]
 )

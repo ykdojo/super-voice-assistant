@@ -37,13 +37,13 @@ class ScreenRecorder {
             outputPath.path
         ]
 
-        // Redirect stdin to prevent ffmpeg from waiting for input
-        let devNull = FileHandle(forReadingAtPath: "/dev/null")
-        process.standardInput = devNull
+        // Use a Pipe for stdin so we can send 'q' to gracefully stop
+        let stdinPipe = Pipe()
+        process.standardInput = stdinPipe
 
         // Capture stderr for errors
-        let pipe = Pipe()
-        process.standardError = pipe
+        let errorPipe = Pipe()
+        process.standardError = errorPipe
 
         self.recordingProcess = process
 

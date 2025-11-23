@@ -47,6 +47,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
     private var displayTimer: Timer?
     private var modelCancellable: AnyCancellable?
     private var transcriptionTimer: Timer?
+    private var videoProcessingTimer: Timer?
     private var audioManager: AudioTranscriptionManager!
     private var streamingPlayer: GeminiStreamingPlayer?
     private var audioCollector: GeminiAudioCollector?
@@ -198,13 +199,23 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
             }
         } else {
             notification.title = "Screen Recording Stopped"
-            notification.informativeText = "Recording has been stopped"
+            notification.informativeText = "Processing video..."
             print("⏹️ Screen recording STOPPED")
 
-            // Reset status bar to default state
-            if let button = statusItem.button {
-                button.image = NSImage(systemSymbolName: "waveform", accessibilityDescription: "Voice Assistant")
-                button.title = ""
+            // Start video processing indicator
+            startVideoProcessingIndicator()
+
+            // Mock processing: wait 2 seconds then complete
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+                self?.stopVideoProcessingIndicator()
+
+                // Show completion notification
+                let completionNotification = NSUserNotification()
+                completionNotification.title = "Video Processing Complete"
+                completionNotification.informativeText = "Video has been processed (mock)"
+                NSUserNotificationCenter.default.deliver(completionNotification)
+
+                print("✅ Mock video processing complete")
             }
         }
         NSUserNotificationCenter.default.deliver(notification)
@@ -425,6 +436,41 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
                 button.image = NSImage(systemSymbolName: "waveform", accessibilityDescription: "Voice Assistant")
                 button.title = ""
             }
+        }
+    }
+
+    func startVideoProcessingIndicator() {
+        // Show initial indicator
+        if let button = statusItem.button {
+            button.image = nil
+            button.title = "🎬 Processing..."
+        }
+
+        // Animate the indicator
+        var dotCount = 0
+        videoProcessingTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+            guard let self = self else {
+                self?.videoProcessingTimer?.invalidate()
+                return
+            }
+
+            if let button = self.statusItem.button {
+                dotCount = (dotCount + 1) % 4
+                let dots = String(repeating: ".", count: dotCount)
+                let spaces = String(repeating: " ", count: 3 - dotCount)
+                button.title = "🎬 Processing" + dots + spaces
+            }
+        }
+    }
+
+    func stopVideoProcessingIndicator() {
+        videoProcessingTimer?.invalidate()
+        videoProcessingTimer = nil
+
+        // Reset to default icon
+        if let button = statusItem.button {
+            button.image = NSImage(systemSymbolName: "waveform", accessibilityDescription: "Voice Assistant")
+            button.title = ""
         }
     }
     

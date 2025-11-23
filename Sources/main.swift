@@ -55,6 +55,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
     private var currentStreamingTask: Task<Void, Never>?
     private var screenRecorder = ScreenRecorder()
     private var currentVideoURL: URL?
+    private var videoTranscriber = VideoTranscriber()
     
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Load environment variables
@@ -197,17 +198,35 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
                     // Start video processing indicator
                     self.startVideoProcessingIndicator()
 
-                    // Simulate processing delay (replace with actual transcription later)
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                        self.stopVideoProcessingIndicator()
+                    // Transcribe the video
+                    print("🎬 Starting transcription for: \(videoURL.lastPathComponent)")
+                    self.videoTranscriber.transcribe(videoURL: videoURL) { result in
+                        DispatchQueue.main.async {
+                            self.stopVideoProcessingIndicator()
 
-                        // Show completion notification
-                        let completionNotification = NSUserNotification()
-                        completionNotification.title = "Video Saved"
-                        completionNotification.informativeText = "Saved to Desktop: \(videoURL.lastPathComponent)"
-                        NSUserNotificationCenter.default.deliver(completionNotification)
+                            switch result {
+                            case .success(let transcription):
+                                // Show completion notification with transcription
+                                let completionNotification = NSUserNotification()
+                                completionNotification.title = "Video Transcribed"
+                                completionNotification.informativeText = transcription.prefix(100) + (transcription.count > 100 ? "..." : "")
+                                NSUserNotificationCenter.default.deliver(completionNotification)
 
-                        print("✅ Video saved: \(videoURL.path)")
+                                print("✅ Transcription complete:")
+                                print("─────────────────")
+                                print(transcription)
+                                print("─────────────────")
+
+                            case .failure(let error):
+                                // Show error notification
+                                let errorNotification = NSUserNotification()
+                                errorNotification.title = "Transcription Failed"
+                                errorNotification.informativeText = error.localizedDescription
+                                NSUserNotificationCenter.default.deliver(errorNotification)
+
+                                print("❌ Transcription failed: \(error.localizedDescription)")
+                            }
+                        }
                     }
 
                 case .failure(let error):

@@ -19,11 +19,19 @@ https://github.com/user-attachments/assets/c961f0c6-f3b3-49d9-9b42-7a7d93ee6bc8
 - Sequential streaming for smooth, natural speech with minimal latency
 - Smart sentence splitting for optimal speech flow
 
+**Screen Recording & Video Transcription**
+- Press Command+Option+X to start/stop screen recording
+- Automatic video transcription using Gemini 2.5 Flash API
+- Transcribed text automatically pastes at cursor position
+- Video files auto-deleted after successful transcription
+- Mutual exclusion with audio recording for clean operation
+
 ## Requirements
 
 - macOS 14.0 or later
 - Xcode 15+ or Xcode Command Line Tools (for Swift 5.9+)
-- Gemini API key (for text-to-speech functionality)
+- Gemini API key (for text-to-speech and video transcription)
+- ffmpeg (for screen recording functionality)
 
 ## System Permissions Setup
 
@@ -36,7 +44,7 @@ The app will automatically request microphone permission on first launch. If den
 
 ### 2. Accessibility Access (Required for Global Hotkeys & Auto-Paste)
 You must manually grant accessibility permissions for the app to:
-- Monitor global keyboard shortcuts (Shift+Alt+Z, Command+Option+A, Escape)
+- Monitor global keyboard shortcuts (Command+Option+Z/S/X/A, Escape)
 - Automatically paste transcribed text at cursor position
 
 **To enable:**
@@ -50,6 +58,11 @@ You must manually grant accessibility permissions for the app to:
 
 **Important:** Without accessibility access, the app cannot detect global hotkeys or paste text automatically.
 
+### 3. Screen Recording Access (Required for Video Transcription)
+The app requires screen recording permission to capture screen content:
+- Go to **System Settings > Privacy & Security > Screen Recording**
+- Enable access for **Terminal** (if running via `swift run`) or **SuperVoiceAssistant**
+
 ## Installation & Running
 
 ```bash
@@ -57,7 +70,10 @@ You must manually grant accessibility permissions for the app to:
 git clone https://github.com/yourusername/super-voice-assistant.git
 cd super-voice-assistant
 
-# Set up environment (for TTS functionality)
+# Install ffmpeg (required for screen recording)
+brew install ffmpeg
+
+# Set up environment (for TTS and video transcription)
 cp .env.example .env
 # Edit .env and add your GEMINI_API_KEY
 
@@ -87,12 +103,23 @@ The app will appear in your menu bar as a waveform icon.
 4. The app uses Gemini Live API for natural, streaming speech synthesis
 5. Configure audio devices via Settings for optimal playback
 
+### Screen Recording & Video Transcription
+1. Press **Command+Option+X** to start screen recording
+2. The menu bar shows "🎥 REC" while recording
+3. Press **Command+Option+X** again to stop recording
+4. The app automatically transcribes the video using Gemini 2.5 Flash
+5. Transcribed text pastes at your cursor position
+6. Video file is automatically deleted after successful transcription
+
+**Note:** Audio recording and screen recording are mutually exclusive - you cannot run both simultaneously.
+
 ### Keyboard Shortcuts
 
-- **Command+Option+Z**: Start/stop recording and transcribe
+- **Command+Option+Z**: Start/stop audio recording and transcribe
 - **Command+Option+S**: Read selected text aloud / Cancel TTS playback
+- **Command+Option+X**: Start/stop screen recording and transcribe
 - **Command+Option+A**: Show transcription history window
-- **Escape**: Cancel recording (when recording is active)
+- **Escape**: Cancel audio recording (when recording is active)
 
 ## Available Commands
 
@@ -130,16 +157,25 @@ swift run TestAudioCollector
 
 # Test sentence splitting for TTS
 swift run TestSentenceSplitter
+
+# Test screen recording (3-second capture)
+swift run RecordScreen
+
+# Test video transcription with Gemini API
+swift run TranscribeVideo <path-to-video-file>
+# Example: swift run TranscribeVideo ~/Desktop/recording.mp4
 ```
 
 ## Project Structure
 
-- `Sources/` - Main app code with TTS integration
-- `SharedSources/` - Shared components (models, TTS, audio management)
+- `Sources/` - Main app code with TTS and video transcription
+  - `ScreenRecorder.swift` - Screen recording with ffmpeg
+- `SharedSources/` - Shared components (models, TTS, audio, video)
   - `GeminiStreamingPlayer.swift` - Streaming TTS playback engine
   - `GeminiAudioCollector.swift` - Audio collection and WebSocket handling
   - `SmartSentenceSplitter.swift` - Text processing for optimal speech
   - `AudioDeviceManager.swift` - Audio device configuration
+  - `VideoTranscriber.swift` - Gemini API video transcription
 - `tests/` - Test utilities organized by functionality:
   - `test-download/` - Model download test
   - `test-streaming-tts/` - TTS functionality test
@@ -148,11 +184,13 @@ swift run TestSentenceSplitter
   - `test-transcription/` - Transcription functionality test
   - `test-live-transcription/` - Live transcription test
   - `test-audio-analysis/` - Audio analysis test
-- `tools/` - Model management utilities:
+- `tools/` - Utilities for models and media:
   - `list-models/` - List available WhisperKit models
-  - `validate-models/` - Validate downloaded models  
+  - `validate-models/` - Validate downloaded models
   - `delete-models/` - Delete all downloaded models
   - `delete-model/` - Delete a specific model
+  - `record-screen/` - Screen recording test tool
+  - `transcribe-video/` - Video transcription test tool
 - `scripts/` - Build and icon generation scripts
 - `logos/` - Logo and branding assets
 

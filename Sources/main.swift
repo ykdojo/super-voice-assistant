@@ -209,6 +209,16 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
                                 // Paste transcription at cursor
                                 self.pasteTextAtCursor(transcription)
 
+                                // Delete the video file after successful transcription
+                                if let videoURL = self.currentVideoURL {
+                                    do {
+                                        try FileManager.default.removeItem(at: videoURL)
+                                        print("🗑️ Deleted video file: \(videoURL.lastPathComponent)")
+                                    } catch {
+                                        print("⚠️ Failed to delete video file: \(error.localizedDescription)")
+                                    }
+                                }
+
                                 // Show completion notification with transcription
                                 let completionNotification = NSUserNotification()
                                 completionNotification.title = "Video Transcribed"

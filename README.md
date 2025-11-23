@@ -10,7 +10,7 @@ https://github.com/user-attachments/assets/c961f0c6-f3b3-49d9-9b42-7a7d93ee6bc8
 
 **Visual disambiguation for names:**
 
-[visual-disambiguation-demo.mov](visual-disambiguation-demo.mov)
+https://github.com/user-attachments/assets/0b7f481f-4fec-4811-87ef-13737e0efac4
 
 ## Features
 

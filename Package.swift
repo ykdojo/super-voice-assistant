@@ -45,6 +45,9 @@ let package = Package(
         .executable(
             name: "RecordScreen",
             targets: ["RecordScreen"]),
+        .executable(
+            name: "TranscribeVideo",
+            targets: ["TranscribeVideo"]),
         .library(
             name: "SharedModels",
             targets: ["SharedModels"])
@@ -109,6 +112,10 @@ let package = Package(
         .executableTarget(
             name: "RecordScreen",
             dependencies: [],
-            path: "tools/record-screen")
+            path: "tools/record-screen"),
+        .executableTarget(
+            name: "TranscribeVideo",
+            dependencies: [],
+            path: "tools/transcribe-video")
     ]
 )

@@ -1,6 +1,6 @@
 # Super Voice Assistant
 
-macOS voice assistant with global hotkeys - transcribe speech to text with offline models into the current cursor and read selected text out loud with live Gemini models.
+macOS voice assistant with global hotkeys - transcribe speech to text with offline models, capture and transcribe screen recordings with visual context for better accuracy on code/technical terms, and read selected text out loud with live Gemini models.
 
 ## Demo (instant text-to-speech)
 
@@ -21,7 +21,8 @@ https://github.com/user-attachments/assets/c961f0c6-f3b3-49d9-9b42-7a7d93ee6bc8
 
 **Screen Recording & Video Transcription**
 - Press Command+Option+X to start/stop screen recording
-- Automatic video transcription using Gemini 2.5 Flash API
+- Automatic video transcription using Gemini 2.5 Flash API with visual context
+- Better accuracy for programming terms, code, technical jargon, and ambiguous words
 - Transcribed text automatically pastes at cursor position
 - Video files auto-deleted after successful transcription
 - Mutual exclusion with audio recording for clean operation
@@ -108,10 +109,15 @@ The app will appear in your menu bar as a waveform icon.
 2. The menu bar shows "🎥 REC" while recording
 3. Press **Command+Option+X** again to stop recording
 4. The app automatically transcribes the video using Gemini 2.5 Flash
-5. Transcribed text pastes at your cursor position
-6. Video file is automatically deleted after successful transcription
+5. Visual context improves accuracy for code, technical terms, and homophones
+6. Transcribed text pastes at your cursor position
+7. Video file is automatically deleted after successful transcription
 
 **Note:** Audio recording and screen recording are mutually exclusive - you cannot run both simultaneously.
+
+**When to use video vs audio:**
+- **Video**: Programming, code review, technical documentation, names, acronyms, specialized terminology
+- **Audio**: General speech, quick notes, casual transcription
 
 ### Keyboard Shortcuts
 

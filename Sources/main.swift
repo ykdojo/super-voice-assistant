@@ -190,10 +190,22 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
             notification.title = "Screen Recording Started"
             notification.informativeText = "Press Cmd+Option+X again to stop"
             print("🎥 Screen recording STARTED")
+
+            // Update status bar to show recording indicator
+            if let button = statusItem.button {
+                button.image = nil
+                button.title = "🎥 REC"
+            }
         } else {
             notification.title = "Screen Recording Stopped"
             notification.informativeText = "Recording has been stopped"
             print("⏹️ Screen recording STOPPED")
+
+            // Reset status bar to default state
+            if let button = statusItem.button {
+                button.image = NSImage(systemSymbolName: "waveform", accessibilityDescription: "Voice Assistant")
+                button.title = ""
+            }
         }
         NSUserNotificationCenter.default.deliver(notification)
     }
@@ -335,16 +347,21 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
     }
     
     func updateStatusBarWithLevel(db: Float) {
+        // Don't update status bar if screen recording is active
+        if isScreenRecording {
+            return
+        }
+
         if let button = statusItem.button {
             button.image = nil
-            
+
             // Convert dB to a 0-1 range (assuming -55dB to -20dB for normal speech)
             let normalizedLevel = max(0, min(1, (db + 55) / 35))
-            
+
             // Create a visual bar using Unicode block characters
             let barLength = 8
             let filledLength = Int(normalizedLevel * Float(barLength))
-            
+
             var bar = ""
             for i in 0..<barLength {
                 if i < filledLength {
@@ -353,18 +370,23 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
                     bar += "▁"
                 }
             }
-            
+
             button.title = "● " + bar
         }
     }
     
     func startTranscriptionIndicator() {
+        // Don't update status bar if screen recording is active
+        if isScreenRecording {
+            return
+        }
+
         // Show initial indicator
         if let button = statusItem.button {
             button.image = nil
             button.title = "⚙️ Processing..."
         }
-        
+
         // Animate the indicator
         var dotCount = 0
         transcriptionTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
@@ -372,7 +394,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
                 self?.transcriptionTimer?.invalidate()
                 return
             }
-            
+
+            // Don't update if screen recording is active
+            if self.isScreenRecording {
+                return
+            }
+
             if let button = self.statusItem.button {
                 dotCount = (dotCount + 1) % 4
                 let dots = String(repeating: ".", count: dotCount)
@@ -385,7 +412,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
     func stopTranscriptionIndicator() {
         transcriptionTimer?.invalidate()
         transcriptionTimer = nil
-        
+
+        // Don't update status bar if screen recording is active
+        if isScreenRecording {
+            return
+        }
+
         // If not currently recording, reset to default icon.
         // When recording, the live level updates will take over UI shortly.
         if audioManager?.isRecording != true {

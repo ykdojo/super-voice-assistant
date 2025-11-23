@@ -36,13 +36,14 @@ extension KeyboardShortcuts.Name {
     static let startRecording = Self("startRecording")
     static let showHistory = Self("showHistory")
     static let readSelectedText = Self("readSelectedText")
+    static let toggleScreenRecording = Self("toggleScreenRecording")
 }
 
 class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDelegate {
     var statusItem: NSStatusItem!
     var settingsWindow: SettingsWindowController?
     private var unifiedWindow: UnifiedManagerWindow?
-    
+
     private var displayTimer: Timer?
     private var modelCancellable: AnyCancellable?
     private var transcriptionTimer: Timer?
@@ -51,6 +52,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
     private var audioCollector: GeminiAudioCollector?
     private var isCurrentlyPlaying = false
     private var currentStreamingTask: Task<Void, Never>?
+    private var isScreenRecording = false
     
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Load environment variables
@@ -82,6 +84,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
         menu.addItem(NSMenuItem(title: "Recording: Press Command+Option+Z", action: nil, keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "History: Press Command+Option+A", action: nil, keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "Read Selected Text: Press Command+Option+S", action: nil, keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "Screen Recording: Press Command+Option+X", action: nil, keyEquivalent: ""))
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Settings...", action: #selector(openSettings), keyEquivalent: ","))
         menu.addItem(NSMenuItem(title: "View History...", action: #selector(showTranscriptionHistory), keyEquivalent: "h"))
@@ -94,6 +97,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
         KeyboardShortcuts.setShortcut(.init(.z, modifiers: [.command, .option]), for: .startRecording)
         KeyboardShortcuts.setShortcut(.init(.a, modifiers: [.command, .option]), for: .showHistory)
         KeyboardShortcuts.setShortcut(.init(.s, modifiers: [.command, .option]), for: .readSelectedText)
+        KeyboardShortcuts.setShortcut(.init(.x, modifiers: [.command, .option]), for: .toggleScreenRecording)
         
         // Set up keyboard shortcut handlers
         KeyboardShortcuts.onKeyUp(for: .startRecording) { [weak self] in
@@ -112,7 +116,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
         KeyboardShortcuts.onKeyUp(for: .readSelectedText) { [weak self] in
             self?.handleReadSelectedTextToggle()
         }
-        
+
+        KeyboardShortcuts.onKeyUp(for: .toggleScreenRecording) { [weak self] in
+            self?.toggleScreenRecording()
+        }
+
         // Set up audio manager
         audioManager = AudioTranscriptionManager()
         audioManager.delegate = self
@@ -169,11 +177,27 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
             stopCurrentPlayback()
             return
         }
-        
+
         // Otherwise, start reading selected text
         readSelectedText()
     }
-    
+
+    func toggleScreenRecording() {
+        isScreenRecording.toggle()
+
+        let notification = NSUserNotification()
+        if isScreenRecording {
+            notification.title = "Screen Recording Started"
+            notification.informativeText = "Press Cmd+Option+X again to stop"
+            print("🎥 Screen recording STARTED")
+        } else {
+            notification.title = "Screen Recording Stopped"
+            notification.informativeText = "Recording has been stopped"
+            print("⏹️ Screen recording STOPPED")
+        }
+        NSUserNotificationCenter.default.deliver(notification)
+    }
+
     func stopCurrentPlayback() {
         print("🛑 Stopping audio playback")
         

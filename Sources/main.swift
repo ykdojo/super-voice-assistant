@@ -53,7 +53,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
     private var audioCollector: GeminiAudioCollector?
     private var isCurrentlyPlaying = false
     private var currentStreamingTask: Task<Void, Never>?
-    private var isScreenRecording = false
+    private var screenRecorder = ScreenRecorder()
+    private var currentVideoURL: URL?
     
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Load environment variables
@@ -184,41 +185,86 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
     }
 
     func toggleScreenRecording() {
-        isScreenRecording.toggle()
+        if screenRecorder.recording {
+            // Stop recording
+            screenRecorder.stopRecording { [weak self] result in
+                guard let self = self else { return }
 
-        let notification = NSUserNotification()
-        if isScreenRecording {
-            notification.title = "Screen Recording Started"
-            notification.informativeText = "Press Cmd+Option+X again to stop"
-            print("🎥 Screen recording STARTED")
+                switch result {
+                case .success(let videoURL):
+                    self.currentVideoURL = videoURL
 
-            // Update status bar to show recording indicator
-            if let button = statusItem.button {
-                button.image = nil
-                button.title = "🎥 REC"
+                    // Start video processing indicator
+                    self.startVideoProcessingIndicator()
+
+                    // Simulate processing delay (replace with actual transcription later)
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                        self.stopVideoProcessingIndicator()
+
+                        // Show completion notification
+                        let completionNotification = NSUserNotification()
+                        completionNotification.title = "Video Saved"
+                        completionNotification.informativeText = "Saved to Desktop: \(videoURL.lastPathComponent)"
+                        NSUserNotificationCenter.default.deliver(completionNotification)
+
+                        print("✅ Video saved: \(videoURL.path)")
+                    }
+
+                case .failure(let error):
+                    print("❌ Screen recording failed: \(error.localizedDescription)")
+
+                    let errorNotification = NSUserNotification()
+                    errorNotification.title = "Recording Failed"
+                    errorNotification.informativeText = error.localizedDescription
+                    NSUserNotificationCenter.default.deliver(errorNotification)
+
+                    // Reset status bar
+                    if let button = self.statusItem.button {
+                        button.image = NSImage(systemSymbolName: "waveform", accessibilityDescription: "Voice Assistant")
+                        button.title = ""
+                    }
+                }
             }
-        } else {
+
+            // Show stopping notification
+            let notification = NSUserNotification()
             notification.title = "Screen Recording Stopped"
-            notification.informativeText = "Processing video..."
+            notification.informativeText = "Saving video..."
+            NSUserNotificationCenter.default.deliver(notification)
             print("⏹️ Screen recording STOPPED")
 
-            // Start video processing indicator
-            startVideoProcessingIndicator()
+        } else {
+            // Start recording
+            screenRecorder.startRecording { [weak self] result in
+                guard let self = self else { return }
 
-            // Mock processing: wait 2 seconds then complete
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
-                self?.stopVideoProcessingIndicator()
+                switch result {
+                case .success(let videoURL):
+                    self.currentVideoURL = videoURL
 
-                // Show completion notification
-                let completionNotification = NSUserNotification()
-                completionNotification.title = "Video Processing Complete"
-                completionNotification.informativeText = "Video has been processed (mock)"
-                NSUserNotificationCenter.default.deliver(completionNotification)
+                    // Update status bar to show recording indicator
+                    if let button = self.statusItem.button {
+                        button.image = nil
+                        button.title = "🎥 REC"
+                    }
 
-                print("✅ Mock video processing complete")
+                    // Show success notification
+                    let notification = NSUserNotification()
+                    notification.title = "Screen Recording Started"
+                    notification.informativeText = "Press Cmd+Option+X again to stop"
+                    NSUserNotificationCenter.default.deliver(notification)
+                    print("🎥 Screen recording STARTED")
+
+                case .failure(let error):
+                    print("❌ Failed to start recording: \(error.localizedDescription)")
+
+                    let errorNotification = NSUserNotification()
+                    errorNotification.title = "Recording Failed"
+                    errorNotification.informativeText = error.localizedDescription
+                    NSUserNotificationCenter.default.deliver(errorNotification)
+                }
             }
         }
-        NSUserNotificationCenter.default.deliver(notification)
     }
 
     func stopCurrentPlayback() {
@@ -359,7 +405,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
     
     func updateStatusBarWithLevel(db: Float) {
         // Don't update status bar if screen recording is active
-        if isScreenRecording {
+        if screenRecorder.recording {
             return
         }
 
@@ -388,7 +434,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
     
     func startTranscriptionIndicator() {
         // Don't update status bar if screen recording is active
-        if isScreenRecording {
+        if screenRecorder.recording {
             return
         }
 
@@ -407,7 +453,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
             }
 
             // Don't update if screen recording is active
-            if self.isScreenRecording {
+            if self.screenRecorder.recording {
                 return
             }
 
@@ -425,7 +471,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
         transcriptionTimer = nil
 
         // Don't update status bar if screen recording is active
-        if isScreenRecording {
+        if screenRecorder.recording {
             return
         }
 

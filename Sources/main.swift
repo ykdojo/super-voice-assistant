@@ -206,10 +206,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
 
                             switch result {
                             case .success(let transcription):
+                                // Paste transcription at cursor
+                                self.pasteTextAtCursor(transcription)
+
                                 // Show completion notification with transcription
                                 let completionNotification = NSUserNotification()
                                 completionNotification.title = "Video Transcribed"
                                 completionNotification.informativeText = transcription.prefix(100) + (transcription.count > 100 ? "..." : "")
+                                completionNotification.subtitle = "Pasted at cursor"
                                 NSUserNotificationCenter.default.deliver(completionNotification)
 
                                 print("✅ Transcription complete:")

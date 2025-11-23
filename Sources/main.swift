@@ -104,12 +104,24 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
         
         // Set up keyboard shortcut handlers
         KeyboardShortcuts.onKeyUp(for: .startRecording) { [weak self] in
+            guard let self = self else { return }
+
+            // Prevent starting audio recording if screen recording is active
+            if self.screenRecorder.recording {
+                let notification = NSUserNotification()
+                notification.title = "Cannot Start Audio Recording"
+                notification.informativeText = "Screen recording is currently active. Stop it first with Cmd+Option+X"
+                NSUserNotificationCenter.default.deliver(notification)
+                print("⚠️ Blocked audio recording - screen recording is active")
+                return
+            }
+
             // If about to start a fresh recording, make sure any previous
             // processing indicator is stopped and UI is reset.
-            if let isRecording = self?.audioManager.isRecording, !isRecording {
-                self?.stopTranscriptionIndicator()
+            if !self.audioManager.isRecording {
+                self.stopTranscriptionIndicator()
             }
-            self?.audioManager.toggleRecording()
+            self.audioManager.toggleRecording()
         }
         
         KeyboardShortcuts.onKeyUp(for: .showHistory) { [weak self] in
@@ -186,6 +198,16 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
     }
 
     func toggleScreenRecording() {
+        // Prevent starting screen recording if audio recording is active
+        if !screenRecorder.recording && audioManager.isRecording {
+            let notification = NSUserNotification()
+            notification.title = "Cannot Start Screen Recording"
+            notification.informativeText = "Audio recording is currently active. Stop it first with Cmd+Option+Z"
+            NSUserNotificationCenter.default.deliver(notification)
+            print("⚠️ Blocked screen recording - audio recording is active")
+            return
+        }
+
         if screenRecorder.recording {
             // Stop recording
             screenRecorder.stopRecording { [weak self] result in

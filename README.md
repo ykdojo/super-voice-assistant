@@ -1,6 +1,6 @@
 # Super Voice Assistant
 
-macOS voice assistant with global hotkeys - transcribe speech to text with offline models, capture and transcribe screen recordings with visual context for better accuracy on code/technical terms, and read selected text out loud with live Gemini models.
+macOS voice assistant with global hotkeys - transcribe speech to text with offline WhisperKit models or cloud-based Gemini API, capture and transcribe screen recordings with visual context for better accuracy on code/technical terms, and read selected text out loud with live Gemini models.
 
 ## Demo
 
@@ -15,7 +15,8 @@ https://github.com/user-attachments/assets/0b7f481f-4fec-4811-87ef-13737e0efac4
 ## Features
 
 **Voice-to-Text Transcription**
-- Press Command+Option+Z to record audio and get instant transcription
+- Press Command+Option+Z for local offline transcription with WhisperKit
+- Press Command+Option+X for cloud transcription with Gemini API
 - Automatic text pasting at cursor position
 - Transcription history with Command+Option+A
 
@@ -26,7 +27,7 @@ https://github.com/user-attachments/assets/0b7f481f-4fec-4811-87ef-13737e0efac4
 - Smart sentence splitting for optimal speech flow
 
 **Screen Recording & Video Transcription**
-- Press Command+Option+X to start/stop screen recording
+- Press Command+Option+C to start/stop screen recording
 - Automatic video transcription using Gemini 2.5 Flash API with visual context
 - Better accuracy for programming terms, code, technical jargon, and ambiguous words
 - Transcribed text automatically pastes at cursor position
@@ -63,7 +64,7 @@ You must manually grant accessibility permissions for the app to:
    - If running the built binary directly: Add the **SuperVoiceAssistant** executable
 5. Ensure the checkbox next to the app is checked
 
-**Important:** Without accessibility access, the app cannot detect global hotkeys or paste text automatically.
+**Important:** Without accessibility access, the app cannot detect global hotkeys (Command+Option+Z/X/A/S/C, Escape) or paste text automatically.
 
 ### 3. Screen Recording Access (Required for Video Transcription)
 The app requires screen recording permission to capture screen content:
@@ -96,12 +97,25 @@ The app will appear in your menu bar as a waveform icon.
 ## Usage
 
 ### Voice-to-Text Transcription
+
+**Local (WhisperKit):**
 1. Launch the app - it appears in the menu bar
 2. Open Settings (click menu bar icon > Settings) to download a WhisperKit model
 3. Press **Command+Option+Z** to start recording (menu bar icon shows recording indicator)
 4. Press **Command+Option+Z** again to stop recording and transcribe
 5. The transcribed text automatically pastes at your cursor position
 6. Press **Escape** during recording to cancel without transcribing
+
+**Cloud (Gemini API):**
+1. Ensure GEMINI_API_KEY is set in your .env file
+2. Press **Command+Option+X** to start recording (menu bar icon shows recording indicator)
+3. Press **Command+Option+X** again to stop recording and transcribe
+4. The transcribed text automatically pastes at your cursor position
+5. Press **Escape** during recording to cancel without transcribing
+
+**When to use which:**
+- **WhisperKit (Cmd+Option+Z)**: Offline, privacy-focused, no API costs, good for general speech
+- **Gemini (Cmd+Option+X)**: Cloud-based, better accuracy for complex audio, requires internet
 
 ### Text-to-Speech
 1. Select any text in any application
@@ -111,9 +125,9 @@ The app will appear in your menu bar as a waveform icon.
 5. Configure audio devices via Settings for optimal playback
 
 ### Screen Recording & Video Transcription
-1. Press **Command+Option+X** to start screen recording
+1. Press **Command+Option+C** to start screen recording
 2. The menu bar shows "🎥 REC" while recording
-3. Press **Command+Option+X** again to stop recording
+3. Press **Command+Option+C** again to stop recording
 4. The app automatically transcribes the video using Gemini 2.5 Flash
 5. Visual context improves accuracy for code, technical terms, and homophones
 6. Transcribed text pastes at your cursor position
@@ -127,9 +141,10 @@ The app will appear in your menu bar as a waveform icon.
 
 ### Keyboard Shortcuts
 
-- **Command+Option+Z**: Start/stop audio recording and transcribe
+- **Command+Option+Z**: Start/stop audio recording and transcribe (WhisperKit - offline)
+- **Command+Option+X**: Start/stop audio recording and transcribe (Gemini - cloud)
 - **Command+Option+S**: Read selected text aloud / Cancel TTS playback
-- **Command+Option+X**: Start/stop screen recording and transcribe
+- **Command+Option+C**: Start/stop screen recording and transcribe
 - **Command+Option+A**: Show transcription history window
 - **Escape**: Cancel audio recording (when recording is active)
 
@@ -187,7 +202,10 @@ swift run TranscribeVideo <path-to-video-file>
   - `GeminiAudioCollector.swift` - Audio collection and WebSocket handling
   - `SmartSentenceSplitter.swift` - Text processing for optimal speech
   - `AudioDeviceManager.swift` - Audio device configuration
+  - `GeminiAudioTranscriber.swift` - Gemini API audio transcription
   - `VideoTranscriber.swift` - Gemini API video transcription
+- `Sources/` - Main app components
+  - `GeminiAudioRecordingManager.swift` - Gemini audio recording manager
 - `tests/` - Test utilities organized by functionality:
   - `test-download/` - Model download test
   - `test-streaming-tts/` - TTS functionality test

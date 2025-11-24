@@ -37,9 +37,10 @@ extension KeyboardShortcuts.Name {
     static let showHistory = Self("showHistory")
     static let readSelectedText = Self("readSelectedText")
     static let toggleScreenRecording = Self("toggleScreenRecording")
+    static let geminiAudioRecording = Self("geminiAudioRecording")
 }
 
-class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDelegate {
+class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDelegate, GeminiAudioRecordingManagerDelegate {
     var statusItem: NSStatusItem!
     var settingsWindow: SettingsWindowController?
     private var unifiedWindow: UnifiedManagerWindow?
@@ -49,6 +50,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
     private var transcriptionTimer: Timer?
     private var videoProcessingTimer: Timer?
     private var audioManager: AudioTranscriptionManager!
+    private var geminiAudioManager: GeminiAudioRecordingManager!
     private var streamingPlayer: GeminiStreamingPlayer?
     private var audioCollector: GeminiAudioCollector?
     private var isCurrentlyPlaying = false
@@ -85,9 +87,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
         // Create menu
         let menu = NSMenu()
         menu.addItem(NSMenuItem(title: "Recording: Press Command+Option+Z", action: nil, keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "Gemini Audio Recording: Press Command+Option+X", action: nil, keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "History: Press Command+Option+A", action: nil, keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "Read Selected Text: Press Command+Option+S", action: nil, keyEquivalent: ""))
-        menu.addItem(NSMenuItem(title: "Screen Recording: Press Command+Option+X", action: nil, keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "Screen Recording: Press Command+Option+C", action: nil, keyEquivalent: ""))
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Settings...", action: #selector(openSettings), keyEquivalent: ","))
         menu.addItem(NSMenuItem(title: "View History...", action: #selector(showTranscriptionHistory), keyEquivalent: "h"))
@@ -98,9 +101,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
         
         // Set default keyboard shortcuts
         KeyboardShortcuts.setShortcut(.init(.z, modifiers: [.command, .option]), for: .startRecording)
+        KeyboardShortcuts.setShortcut(.init(.x, modifiers: [.command, .option]), for: .geminiAudioRecording)
         KeyboardShortcuts.setShortcut(.init(.a, modifiers: [.command, .option]), for: .showHistory)
         KeyboardShortcuts.setShortcut(.init(.s, modifiers: [.command, .option]), for: .readSelectedText)
-        KeyboardShortcuts.setShortcut(.init(.x, modifiers: [.command, .option]), for: .toggleScreenRecording)
+        KeyboardShortcuts.setShortcut(.init(.c, modifiers: [.command, .option]), for: .toggleScreenRecording)
         
         // Set up keyboard shortcut handlers
         KeyboardShortcuts.onKeyUp(for: .startRecording) { [weak self] in
@@ -110,9 +114,19 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
             if self.screenRecorder.recording {
                 let notification = NSUserNotification()
                 notification.title = "Cannot Start Audio Recording"
-                notification.informativeText = "Screen recording is currently active. Stop it first with Cmd+Option+X"
+                notification.informativeText = "Screen recording is currently active. Stop it first with Cmd+Option+C"
                 NSUserNotificationCenter.default.deliver(notification)
                 print("⚠️ Blocked audio recording - screen recording is active")
+                return
+            }
+
+            // Prevent starting audio recording if Gemini audio recording is active
+            if self.geminiAudioManager.isRecording {
+                let notification = NSUserNotification()
+                notification.title = "Cannot Start Audio Recording"
+                notification.informativeText = "Gemini audio recording is currently active. Stop it first with Cmd+Option+X"
+                NSUserNotificationCenter.default.deliver(notification)
+                print("⚠️ Blocked audio recording - Gemini audio recording is active")
                 return
             }
 
@@ -132,6 +146,37 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
             self?.handleReadSelectedTextToggle()
         }
 
+        KeyboardShortcuts.onKeyUp(for: .geminiAudioRecording) { [weak self] in
+            guard let self = self else { return }
+
+            // Prevent starting Gemini audio recording if screen recording is active
+            if self.screenRecorder.recording {
+                let notification = NSUserNotification()
+                notification.title = "Cannot Start Gemini Audio Recording"
+                notification.informativeText = "Screen recording is currently active. Stop it first with Cmd+Option+C"
+                NSUserNotificationCenter.default.deliver(notification)
+                print("⚠️ Blocked Gemini audio recording - screen recording is active")
+                return
+            }
+
+            // Prevent starting Gemini audio recording if WhisperKit recording is active
+            if self.audioManager.isRecording {
+                let notification = NSUserNotification()
+                notification.title = "Cannot Start Gemini Audio Recording"
+                notification.informativeText = "WhisperKit recording is currently active. Stop it first with Cmd+Option+Z"
+                NSUserNotificationCenter.default.deliver(notification)
+                print("⚠️ Blocked Gemini audio recording - WhisperKit recording is active")
+                return
+            }
+
+            // If about to start a fresh recording, make sure any previous
+            // processing indicator is stopped and UI is reset.
+            if !self.geminiAudioManager.isRecording {
+                self.stopTranscriptionIndicator()
+            }
+            self.geminiAudioManager.toggleRecording()
+        }
+
         KeyboardShortcuts.onKeyUp(for: .toggleScreenRecording) { [weak self] in
             self?.toggleScreenRecording()
         }
@@ -139,6 +184,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
         // Set up audio manager
         audioManager = AudioTranscriptionManager()
         audioManager.delegate = self
+
+        // Set up Gemini audio manager
+        geminiAudioManager = GeminiAudioRecordingManager()
+        geminiAudioManager.delegate = self
         
         // Check downloaded models at startup (in background)
         Task {
@@ -205,6 +254,16 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
             notification.informativeText = "Audio recording is currently active. Stop it first with Cmd+Option+Z"
             NSUserNotificationCenter.default.deliver(notification)
             print("⚠️ Blocked screen recording - audio recording is active")
+            return
+        }
+
+        // Prevent starting screen recording if Gemini audio recording is active
+        if !screenRecorder.recording && geminiAudioManager.isRecording {
+            let notification = NSUserNotification()
+            notification.title = "Cannot Start Screen Recording"
+            notification.informativeText = "Gemini audio recording is currently active. Stop it first with Cmd+Option+X"
+            NSUserNotificationCenter.default.deliver(notification)
+            print("⚠️ Blocked screen recording - Gemini audio recording is active")
             return
         }
 
@@ -306,7 +365,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
                     // Show success notification
                     let notification = NSUserNotification()
                     notification.title = "Screen Recording Started"
-                    notification.informativeText = "Press Cmd+Option+X again to stop"
+                    notification.informativeText = "Press Cmd+Option+C again to stop"
                     NSUserNotificationCenter.default.deliver(notification)
                     print("🎥 Screen recording STARTED")
 

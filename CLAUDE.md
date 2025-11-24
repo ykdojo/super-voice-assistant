@@ -17,30 +17,42 @@
 - Never include Claude attribution or Co-Author information in git commits
 - Keep commit messages clean and professional without AI-related references
 
-## Documentation in Progress
+## Completed Features
 
 ### Gemini Live TTS Integration
 
-**Status**: Complete TTS system ✅ ready for main app integration  
-**Branch**: `gemini-text-to-speech`  
+**Status**: ✅ Complete and integrated into main app
 **Key Files**:
-- `GEMINI_TTS_PLAN.md` - Technical specifications and implementation roadmap
-- `SharedSources/GeminiTTS.swift` - Reusable TTS component with AVAudioEngine
-- `TestGeminiLiveSources/main.swift` - Simple test executable using shared component
-- `.env.example` - API key configuration template
+- `SharedSources/GeminiStreamingPlayer.swift` - Streaming TTS playback engine
+- `SharedSources/GeminiAudioCollector.swift` - Audio collection and WebSocket handling
+- `SharedSources/SmartSentenceSplitter.swift` - Text processing for optimal speech
 
-**Progress**:
-- ✅ API research and technical planning completed
-- ✅ Complete WebSocket connection with JSON parsing and base64 audio decoding
-- ✅ AVAudioEngine playback pipeline with 15% speed boost via TimePitch effect
-- ✅ Shared GeminiTTS component extracted for main app reuse
-- 🔄 Next: Add Cmd+Opt+S keyboard shortcut for selected text speech
+**Features**:
+- ✅ Cmd+Opt+S keyboard shortcut for reading selected text aloud
+- ✅ Sequential streaming for smooth, natural speech with minimal latency
+- ✅ Smart sentence splitting for optimal speech flow
+- ✅ 15% speed boost via TimePitch effect
 
-**Test Command**: `swift run TestGeminiLive`
+### Gemini Audio Transcription
 
-**Keyboard Shortcut Implementation**:
-- **Target**: Cmd+Opt+S for reading selected text aloud
-- **Feasible**: ✅ Yes - app already has Cmd+Opt+Z/A shortcuts using KeyboardShortcuts library
-- **Integration**: Add GeminiTTS to main app, capture selected text via accessibility APIs, trigger TTS
-- **Reference**: See existing shortcuts in `Sources/main.swift:45-49`
+**Status**: ✅ Complete and integrated into main app
+**Branch**: `gemini-audio-feature`
+**Key Files**:
+- `SharedSources/GeminiAudioTranscriber.swift` - Gemini API audio transcription
+- `Sources/GeminiAudioRecordingManager.swift` - Audio recording manager for Gemini
+
+**Features**:
+- ✅ Cmd+Opt+X keyboard shortcut for Gemini audio recording and transcription
+- ✅ Cloud-based transcription using Gemini 2.5 Flash API
+- ✅ WAV audio conversion and base64 encoding
+- ✅ Silence detection and automatic filtering
+- ✅ Mutual exclusion with WhisperKit recording and screen recording
+- ✅ Transcription history integration
+
+**Keyboard Shortcuts**:
+- **Cmd+Opt+Z**: WhisperKit audio recording (offline)
+- **Cmd+Opt+X**: Gemini audio recording (cloud)
+- **Cmd+Opt+S**: Text-to-speech with Gemini
+- **Cmd+Opt+C**: Screen recording with video transcription
+- **Cmd+Opt+A**: Show transcription history
 

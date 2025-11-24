@@ -31,8 +31,6 @@ https://github.com/user-attachments/assets/0b7f481f-4fec-4811-87ef-13737e0efac4
 - Automatic video transcription using Gemini 2.5 Flash API with visual context
 - Better accuracy for programming terms, code, technical jargon, and ambiguous words
 - Transcribed text automatically pastes at cursor position
-- Video files auto-deleted after successful transcription
-- Mutual exclusion with audio recording for clean operation
 
 ## Requirements
 

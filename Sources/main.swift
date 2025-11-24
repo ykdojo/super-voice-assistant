@@ -287,6 +287,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
 
                             switch result {
                             case .success(let transcription):
+                                // Save to history
+                                TranscriptionHistory.shared.addEntry(transcription)
+
                                 // Paste transcription at cursor
                                 self.pasteTextAtCursor(transcription)
 

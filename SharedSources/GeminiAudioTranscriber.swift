@@ -77,7 +77,7 @@ public class GeminiAudioTranscriber {
                 [
                     "parts": [
                         [
-                            "text": "Transcribe the speech verbatim. Output only the spoken words, nothing else."
+                            "text": "Transcribe the speech from this audio. Provide only the transcription text, without any additional commentary."
                         ],
                         [
                             "inline_data": [

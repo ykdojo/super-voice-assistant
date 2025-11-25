@@ -25,11 +25,14 @@ class ScreenRecorder {
         // Create ffmpeg process
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        let videoDevice = "5"  // Capture screen 0
+        let audioDevice = "default"  // Default microphone
+
         process.arguments = [
             "ffmpeg",
             "-f", "avfoundation",
             "-capture_cursor", "1",
-            "-i", "4:default",  // Screen + system audio
+            "-i", "\(videoDevice):\(audioDevice)",
             "-vcodec", "h264",
             "-acodec", "aac",
             "-pix_fmt", "yuv420p",
@@ -37,13 +40,15 @@ class ScreenRecorder {
             outputPath.path
         ]
 
-        // Use a Pipe for stdin so we can send 'q' to gracefully stop
-        let stdinPipe = Pipe()
-        process.standardInput = stdinPipe
+        print("🎥 Using video device: \(videoDevice) (Capture screen 0)")
+        print("🎤 Using audio device: \(audioDevice)")
 
-        // Capture stderr for errors
-        let errorPipe = Pipe()
-        process.standardError = errorPipe
+        // Redirect stdin to /dev/null since we use SIGINT to stop
+        process.standardInput = FileHandle.nullDevice
+
+        // Capture stderr for errors (suppress ffmpeg output)
+        process.standardError = FileHandle.nullDevice
+        process.standardOutput = FileHandle.nullDevice
 
         self.recordingProcess = process
 
@@ -66,14 +71,10 @@ class ScreenRecorder {
             return
         }
 
-        // Send 'q' command to ffmpeg to gracefully stop
-        if let stdin = process.standardInput as? Pipe {
-            let qCommand = "q\n".data(using: .utf8)!
-            try? stdin.fileHandleForWriting.write(contentsOf: qCommand)
-        } else {
-            // Fallback: send SIGINT for graceful termination
-            process.interrupt()
-        }
+        // Use SIGINT to gracefully stop ffmpeg (equivalent to Ctrl+C)
+        // This is more reliable than sending 'q' via stdin pipe
+        print("📝 Sending SIGINT to ffmpeg")
+        process.interrupt()
 
         // Wait for process to finish (with timeout)
         DispatchQueue.global(qos: .userInitiated).async {
@@ -93,11 +94,16 @@ class ScreenRecorder {
                 self.isRecording = false
                 self.recordingProcess = nil
 
-                if process.terminationStatus == 0 {
-                    print("✅ Screen recording saved: \(outputURL.lastPathComponent)")
+                // Exit code 255 (or 251 on some systems) is normal when ffmpeg is interrupted with SIGINT
+                // Check if the output file exists and has content as the real success indicator
+                let fileExists = FileManager.default.fileExists(atPath: outputURL.path)
+                let fileSize = (try? FileManager.default.attributesOfItem(atPath: outputURL.path)[.size] as? Int) ?? 0
+
+                if fileExists && fileSize > 0 {
+                    print("✅ Screen recording saved: \(outputURL.lastPathComponent) (\(fileSize) bytes)")
                     completion(.success(outputURL))
                 } else {
-                    print("❌ Screen recording failed with exit code \(process.terminationStatus)")
+                    print("❌ Screen recording failed - file not created or empty (exit code: \(process.terminationStatus))")
                     completion(.failure(ScreenRecorderError.recordingFailed(exitCode: process.terminationStatus)))
                 }
             }

@@ -288,7 +288,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
                             switch result {
                             case .success(var transcription):
                                 // Apply text replacements from config
-                                transcription = TextReplacements.shared.applyReplacements(transcription)
+                                transcription = TextReplacements.shared.processText(transcription)
 
                                 // Save to history
                                 TranscriptionHistory.shared.addEntry(transcription)

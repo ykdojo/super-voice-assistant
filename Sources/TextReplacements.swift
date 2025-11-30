@@ -40,12 +40,39 @@ class TextReplacements {
         loadConfig()
     }
 
-    /// Apply all text replacements to the input string (case-sensitive)
-    func applyReplacements(_ text: String) -> String {
+    /// Process text: apply replacements and strip enclosing quotes
+    func processText(_ text: String) -> String {
         var result = text
         for (find, replace) in config.textReplacements {
             result = result.replacingOccurrences(of: find, with: replace)
         }
+
+        // Remove enclosing quotation marks if the entire string is wrapped in them
+        result = stripEnclosingQuotes(result)
+
         return result
+    }
+
+    /// Removes quotation marks if they enclose the entire string
+    private func stripEnclosingQuotes(_ text: String) -> String {
+        let trimmed = text.trimmingCharacters(in: .whitespaces)
+
+        // Check for various quote pairs
+        let quotePairs: [(String, String)] = [
+            ("\"", "\""),           // straight double quotes
+            ("'", "'"),             // straight single quotes
+            ("\u{201C}", "\u{201D}"), // curly double quotes " "
+            ("\u{2018}", "\u{2019}"), // curly single quotes ' '
+        ]
+
+        for (open, close) in quotePairs {
+            if trimmed.hasPrefix(open) && trimmed.hasSuffix(close) && trimmed.count > open.count + close.count {
+                let startIndex = trimmed.index(trimmed.startIndex, offsetBy: open.count)
+                let endIndex = trimmed.index(trimmed.endIndex, offsetBy: -close.count)
+                return String(trimmed[startIndex..<endIndex])
+            }
+        }
+
+        return text
     }
 }

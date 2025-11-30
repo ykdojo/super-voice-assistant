@@ -283,7 +283,7 @@ class AudioTranscriptionManager {
                 var transcription = firstResult.text.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
                 if !transcription.isEmpty {
                     // Apply text replacements from config
-                    transcription = TextReplacements.shared.applyReplacements(transcription)
+                    transcription = TextReplacements.shared.processText(transcription)
 
                     print("✅ Transcription: \"\(transcription)\"")
 

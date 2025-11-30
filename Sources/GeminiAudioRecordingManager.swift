@@ -230,7 +230,7 @@ class GeminiAudioRecordingManager {
                     var trimmed = transcription.trimmingCharacters(in: .whitespacesAndNewlines)
                     if !trimmed.isEmpty {
                         // Apply text replacements from config
-                        trimmed = TextReplacements.shared.applyReplacements(trimmed)
+                        trimmed = TextReplacements.shared.processText(trimmed)
 
                         print("✅ Gemini transcription: \"\(trimmed)\"")
 

@@ -286,7 +286,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
                             self.stopVideoProcessingIndicator()
 
                             switch result {
-                            case .success(let transcription):
+                            case .success(var transcription):
+                                // Apply text replacements from config
+                                transcription = TextReplacements.shared.applyReplacements(transcription)
+
                                 // Save to history
                                 TranscriptionHistory.shared.addEntry(transcription)
 

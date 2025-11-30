@@ -1,0 +1,6 @@
+{
+  "textReplacements" : {
+    "cloud code" : "claude code",
+    "cloud.md" : "claude.md"
+  }
+}

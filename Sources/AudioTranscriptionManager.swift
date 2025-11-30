@@ -268,13 +268,16 @@ class AudioTranscriptionManager {
             isTranscribing = false
             
             if let firstResult = transcriptionResult.first {
-                let transcription = firstResult.text.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+                var transcription = firstResult.text.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
                 if !transcription.isEmpty {
+                    // Apply text replacements from config
+                    transcription = TextReplacements.shared.applyReplacements(transcription)
+
                     print("✅ Transcription: \"\(transcription)\"")
-                    
+
                     // Save to history
                     TranscriptionHistory.shared.addEntry(transcription)
-                    
+
                     // Notify delegate
                     delegate?.transcriptionDidComplete(text: transcription)
                 } else {

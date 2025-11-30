@@ -1,6 +1,8 @@
 {
   "textReplacements" : {
     "cloud code" : "claude code",
-    "cloud.md" : "claude.md"
+    "cloud.md" : "CLAUDE.md",
+    "claw.md" : "CLAUDE.md",
+    "clod.md" : "CLAUDE.md"
   }
 }

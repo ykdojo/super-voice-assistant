@@ -62,8 +62,20 @@ public class GeminiAudioTranscriber {
             return
         }
 
+        // Pad short audio with 1 second of silence to improve transcription reliability
+        let sampleRate = 16000
+        let minDurationSeconds: Float = 1.5
+        let paddingDurationSeconds: Float = 1.0
+        let minSamples = Int(minDurationSeconds * Float(sampleRate))
+        let paddingSamples = Int(paddingDurationSeconds * Float(sampleRate))
+
+        var paddedBuffer = audioBuffer
+        if audioBuffer.count < minSamples {
+            paddedBuffer.append(contentsOf: [Float](repeating: 0.0, count: paddingSamples))
+        }
+
         // Convert audio buffer to WAV data
-        guard let wavData = convertToWAV(audioBuffer: audioBuffer, sampleRate: 16000) else {
+        guard let wavData = convertToWAV(audioBuffer: paddedBuffer, sampleRate: 16000) else {
             completion(.failure(TranscriptionError.audioConversionFailed))
             return
         }

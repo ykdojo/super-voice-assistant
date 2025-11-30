@@ -92,6 +92,24 @@ swift run SuperVoiceAssistant
 
 The app will appear in your menu bar as a waveform icon.
 
+## Configuration
+
+### Text Replacements
+
+You can configure automatic text replacements for transcriptions by editing `config.json` in the project root:
+
+```json
+{
+  "textReplacements": {
+    "Cloud Code": "Claude Code",
+    "cloud code": "claude code",
+    "cloud.md": "CLAUDE.md"
+  }
+}
+```
+
+This is useful for correcting common speech-to-text misrecognitions, especially for proper nouns, brand names, or technical terms. Replacements are case-sensitive and applied to all transcriptions.
+
 ## Usage
 
 ### Voice-to-Text Transcription

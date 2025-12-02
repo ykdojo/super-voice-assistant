@@ -5,6 +5,8 @@
     "cloud code" : "claude code",
     "cloud.md" : "CLAUDE.md",
     "claw.md" : "CLAUDE.md",
-    "clod.md" : "CLAUDE.md"
+    "clod.md" : "CLAUDE.md",
+    "let's make a comment." : "let's make a commit.",
+    "Let's make a comment." : "Let's make a commit."
   }
 }

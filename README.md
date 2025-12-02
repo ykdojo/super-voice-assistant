@@ -1,6 +1,6 @@
 # Super Voice Assistant
 
-macOS voice assistant with global hotkeys - transcribe speech to text with offline WhisperKit models or cloud-based Gemini API, capture and transcribe screen recordings with visual context for better accuracy on code/technical terms, and read selected text out loud with live Gemini models.
+macOS voice assistant with global hotkeys - transcribe speech to text with offline WhisperKit models or cloud-based Gemini API, capture and transcribe screen recordings with visual context for better accuracy on code/technical terms, and read selected text out loud with live Gemini models. Compared to other options, it's faster and more accurate with simple UI/UX.
 
 ## Demo
 

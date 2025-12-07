@@ -1,14 +1,23 @@
 import Foundation
 
+enum TranscriptionModelType: String, Codable {
+    case local = "local"
+    case gemini = "gemini"
+}
+
 struct TranscriptionEntry: Codable {
     let id: UUID
     let text: String
     let timestamp: Date
-    
-    init(text: String) {
+    let modelType: TranscriptionModelType?
+    let modelName: String?
+
+    init(text: String, modelType: TranscriptionModelType? = nil, modelName: String? = nil) {
         self.id = UUID()
         self.text = text
         self.timestamp = Date()
+        self.modelType = modelType
+        self.modelName = modelName
     }
 }
 
@@ -55,21 +64,22 @@ class TranscriptionHistory {
         }
     }
     
-    func addEntry(_ text: String) {
-        let entry = TranscriptionEntry(text: text)
+    func addEntry(_ text: String, modelType: TranscriptionModelType? = nil, modelName: String? = nil) {
+        let entry = TranscriptionEntry(text: text, modelType: modelType, modelName: modelName)
         entries.insert(entry, at: 0) // Add at beginning for most recent first
-        
+
         // Limit entries
         if entries.count > maxEntries {
             entries = Array(entries.prefix(maxEntries))
         }
-        
+
         saveHistory()
-        
+
         // Update stats
         TranscriptionStats.shared.incrementTranscriptionCount()
-        
-        print("Added transcription to history: \(text)")
+
+        let modelInfo = modelName ?? modelType?.rawValue ?? "unknown"
+        print("Added transcription to history (\(modelInfo)): \(text)")
     }
     
     func getEntries() -> [TranscriptionEntry] {

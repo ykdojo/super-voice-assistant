@@ -287,8 +287,9 @@ class AudioTranscriptionManager {
 
                     print("✅ Transcription: \"\(transcription)\"")
 
-                    // Save to history
-                    TranscriptionHistory.shared.addEntry(transcription)
+                    // Save to history with model info
+                    let modelName = ModelStateManager.shared.selectedModel
+                    TranscriptionHistory.shared.addEntry(transcription, modelType: .local, modelName: modelName)
 
                     // Notify delegate
                     delegate?.transcriptionDidComplete(text: transcription)

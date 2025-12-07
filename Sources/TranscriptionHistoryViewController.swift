@@ -295,12 +295,28 @@ class TranscriptionHistoryViewController: NSViewController, NSTableViewDelegate,
             textField.maximumNumberOfLines = 2
             textField.translatesAutoresizingMaskIntoConstraints = false
             cellView.addSubview(textField)
-            
-            // Top-align the date text
+
+            // Add model info label
+            let modelInfo = formatModelInfo(entry)
+            let modelLabel = NSTextField(labelWithString: modelInfo)
+            modelLabel.font = .systemFont(ofSize: 10)
+            modelLabel.textColor = .tertiaryLabelColor
+            modelLabel.isEditable = false
+            modelLabel.isBordered = false
+            modelLabel.backgroundColor = .clear
+            modelLabel.lineBreakMode = .byTruncatingTail
+            modelLabel.translatesAutoresizingMaskIntoConstraints = false
+            cellView.addSubview(modelLabel)
+
+            // Top-align the date text and place model info below
             NSLayoutConstraint.activate([
                 textField.leadingAnchor.constraint(equalTo: cellView.leadingAnchor, constant: 5),
                 textField.trailingAnchor.constraint(equalTo: cellView.trailingAnchor, constant: -5),
-                textField.topAnchor.constraint(equalTo: cellView.topAnchor, constant: 5)
+                textField.topAnchor.constraint(equalTo: cellView.topAnchor, constant: 5),
+
+                modelLabel.leadingAnchor.constraint(equalTo: cellView.leadingAnchor, constant: 5),
+                modelLabel.trailingAnchor.constraint(equalTo: cellView.trailingAnchor, constant: -5),
+                modelLabel.topAnchor.constraint(equalTo: textField.bottomAnchor, constant: 2)
             ])
         }
         
@@ -310,7 +326,7 @@ class TranscriptionHistoryViewController: NSViewController, NSTableViewDelegate,
     private func formatDate(_ date: Date) -> String {
         let formatter = DateFormatter()
         let calendar = Calendar.current
-        
+
         if calendar.isDateInToday(date) {
             formatter.dateFormat = "h:mm a"
             return "Today " + formatter.string(from: date)
@@ -320,6 +336,27 @@ class TranscriptionHistoryViewController: NSViewController, NSTableViewDelegate,
         } else {
             formatter.dateFormat = "MMM d, h:mm a"
             return formatter.string(from: date)
+        }
+    }
+
+    private func formatModelInfo(_ entry: TranscriptionEntry) -> String {
+        if let modelType = entry.modelType {
+            switch modelType {
+            case .local:
+                if let modelName = entry.modelName {
+                    return "Local: \(modelName)"
+                } else {
+                    return "Local Model"
+                }
+            case .gemini:
+                if let modelName = entry.modelName {
+                    return "Remote: \(modelName)"
+                } else {
+                    return "Remote: Gemini"
+                }
+            }
+        } else {
+            return "Model: Unknown"
         }
     }
 }

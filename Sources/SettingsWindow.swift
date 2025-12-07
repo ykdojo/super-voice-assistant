@@ -43,6 +43,7 @@ struct SettingsView: View {
                             downloadProgress: downloadProgress[model.name] ?? 0,
                             downloadError: downloadErrors[model.name],
                             loadingState: modelState.getLoadingState(for: model.name),
+                            modelSource: modelState.getModelSource(for: model.name),
                             onSelect: {
                                 if modelState.downloadedModels.contains(model.name) {
                                     modelState.selectedModel = model.name

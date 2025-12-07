@@ -234,8 +234,8 @@ class GeminiAudioRecordingManager {
 
                         print("✅ Gemini transcription: \"\(trimmed)\"")
 
-                        // Save to history
-                        TranscriptionHistory.shared.addEntry(trimmed)
+                        // Save to history with Gemini model info
+                        TranscriptionHistory.shared.addEntry(trimmed, modelType: .gemini, modelName: GeminiAudioTranscriber.modelDisplayName)
 
                         // Notify delegate
                         self?.delegate?.transcriptionDidComplete(text: trimmed)

@@ -4,6 +4,10 @@ import AVFoundation
 /// Transcribes audio using Gemini API
 public class GeminiAudioTranscriber {
 
+    // Model configuration
+    private static let modelId = "gemini-2.5-flash"
+    public static let modelDisplayName = "Gemini 2.5 Flash"
+
     public init() {}
 
     public enum TranscriptionError: Error, LocalizedError {
@@ -108,8 +112,8 @@ public class GeminiAudioTranscriber {
             return
         }
 
-        // Make API request using Gemini 2.5 Flash
-        let apiURL = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=\(apiKey)")!
+        // Make API request using Gemini model
+        let apiURL = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(Self.modelId):generateContent?key=\(apiKey)")!
         var request = URLRequest(url: apiURL)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")

@@ -28,7 +28,7 @@ public class WhisperModelManager {
     
     private let fileManager = FileManager.default
     
-    /// Get the base path for WhisperKit models
+    /// Get the base path for WhisperKit models (app's own directory)
     public func getModelsBasePath() -> URL {
         let documentsPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
         return documentsPath
@@ -37,10 +37,84 @@ public class WhisperModelManager {
             .appendingPathComponent("argmaxinc")
             .appendingPathComponent("whisperkit-coreml")
     }
-    
-    /// Get the path for a specific model
+
+    /// Get the base path for MacWhisper models (read-only)
+    public func getMacWhisperBasePath() -> URL {
+        let homeDirectory = fileManager.homeDirectoryForCurrentUser
+        return homeDirectory
+            .appendingPathComponent("Library")
+            .appendingPathComponent("Application Support")
+            .appendingPathComponent("MacWhisper")
+            .appendingPathComponent("models")
+            .appendingPathComponent("whisperkit")
+            .appendingPathComponent("models")
+            .appendingPathComponent("argmaxinc")
+            .appendingPathComponent("whisperkit-coreml")
+    }
+
+    /// Check if a model exists in MacWhisper directory
+    public func macWhisperModelExists(_ modelName: String) -> Bool {
+        let macWhisperPath = getMacWhisperBasePath().appendingPathComponent(modelName)
+        return isValidModelDirectory(at: macWhisperPath)
+    }
+
+    /// Get the source of a model (app or MacWhisper)
+    public func getModelSource(for modelName: String) -> ModelSource? {
+        // Check app directory first
+        let appPath = getModelsBasePath().appendingPathComponent(modelName)
+        if isValidModelDirectory(at: appPath) {
+            return .app
+        }
+
+        // Check MacWhisper directory
+        let macWhisperPath = getMacWhisperBasePath().appendingPathComponent(modelName)
+        if isValidModelDirectory(at: macWhisperPath) {
+            return .macWhisper
+        }
+
+        return nil
+    }
+
+    /// Get the path for a specific model (checks both locations, prioritizes app's own)
     public func getModelPath(for modelName: String) -> URL {
-        return getModelsBasePath().appendingPathComponent(modelName)
+        // 1. Check app's own directory first
+        let appPath = getModelsBasePath().appendingPathComponent(modelName)
+        if isValidModelDirectory(at: appPath) {
+            return appPath
+        }
+
+        // 2. Fallback to MacWhisper if available
+        let macWhisperPath = getMacWhisperBasePath().appendingPathComponent(modelName)
+        if isValidModelDirectory(at: macWhisperPath) {
+            return macWhisperPath
+        }
+
+        // 3. Return app path for potential downloads
+        return appPath
+    }
+
+    /// Check if a directory contains a valid WhisperKit model
+    private func isValidModelDirectory(at path: URL) -> Bool {
+        guard fileManager.fileExists(atPath: path.path) else {
+            return false
+        }
+
+        // Check for essential WhisperKit model components
+        let requiredComponents = [
+            "AudioEncoder.mlmodelc",
+            "MelSpectrogram.mlmodelc",
+            "TextDecoder.mlmodelc",
+            "config.json"
+        ]
+
+        for component in requiredComponents {
+            let componentPath = path.appendingPathComponent(component)
+            if !fileManager.fileExists(atPath: componentPath.path) {
+                return false
+            }
+        }
+
+        return true
     }
     
     /// Get the metadata file path for a model
@@ -102,22 +176,42 @@ public class WhisperModelManager {
         return metadata
     }
     
-    /// Get all downloaded models
+    /// Get all downloaded models (from both app and MacWhisper directories)
     public func getDownloadedModels() -> [String] {
-        let modelsPath = getModelsBasePath()
-        
-        guard let modelDirs = try? fileManager.contentsOfDirectory(
-            at: modelsPath,
+        var modelNames = Set<String>()
+
+        // Check app's own directory
+        let appModelsPath = getModelsBasePath()
+        if let appModelDirs = try? fileManager.contentsOfDirectory(
+            at: appModelsPath,
             includingPropertiesForKeys: nil,
             options: [.skipsHiddenFiles]
-        ) else {
-            return []
+        ) {
+            for modelDir in appModelDirs {
+                let modelName = modelDir.lastPathComponent
+                if isModelDownloaded(modelName) || isValidModelDirectory(at: modelDir) {
+                    modelNames.insert(modelName)
+                }
+            }
         }
-        
-        return modelDirs.compactMap { modelDir in
-            let modelName = modelDir.lastPathComponent
-            return isModelDownloaded(modelName) ? modelName : nil
+
+        // Check MacWhisper directory
+        let macWhisperPath = getMacWhisperBasePath()
+        if fileManager.fileExists(atPath: macWhisperPath.path),
+           let macWhisperDirs = try? fileManager.contentsOfDirectory(
+            at: macWhisperPath,
+            includingPropertiesForKeys: nil,
+            options: [.skipsHiddenFiles]
+        ) {
+            for modelDir in macWhisperDirs {
+                let modelName = modelDir.lastPathComponent
+                if isValidModelDirectory(at: modelDir) {
+                    modelNames.insert(modelName)
+                }
+            }
         }
+
+        return Array(modelNames).sorted()
     }
     
     /// Check if a model exists on disk (regardless of download status)

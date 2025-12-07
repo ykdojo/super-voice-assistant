@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import SharedModels
 
 struct AccuracyBar: View {
     let accuracy: String
@@ -81,6 +82,7 @@ struct ModelCard: View {
     let downloadProgress: Double
     let downloadError: String?
     let loadingState: ModelStateManager.ModelLoadingState
+    let modelSource: ModelSource?
     let onSelect: () -> Void
     let onDownload: () -> Void
     
@@ -96,7 +98,7 @@ struct ModelCard: View {
                 HStack {
                     Text(model.displayName)
                         .font(.headline)
-                    
+
                     // Language badge
                     Text(model.languages)
                         .font(.caption2)
@@ -107,6 +109,21 @@ struct ModelCard: View {
                                 .fill(Color.blue.opacity(0.15))
                         )
                         .foregroundColor(.blue)
+
+                    // Source badge (MacWhisper)
+                    if let source = modelSource, source == .macWhisper {
+                        let modelPath = WhisperModelManager.shared.getModelPath(for: model.whisperKitModelName).path
+                        Text("MacWhisper")
+                            .font(.caption2)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(
+                                Capsule()
+                                    .fill(Color.purple.opacity(0.15))
+                            )
+                            .foregroundColor(.purple)
+                            .help("Using model from MacWhisper app\nPath: \(modelPath)")
+                    }
                 }
                 
                 Text(model.description)
@@ -136,7 +153,7 @@ struct ModelCard: View {
             }
             
             Spacer()
-            
+
             // Download button or status
             if isDownloaded {
                 switch loadingState {
@@ -157,11 +174,19 @@ struct ModelCard: View {
                             .font(.caption)
                             .foregroundColor(.green)
                     }
+                case .downloaded:
+                    HStack {
+                        Image(systemName: "checkmark.circle")
+                            .foregroundColor(modelSource == .macWhisper ? .purple : .blue)
+                        Text(modelSource == .macWhisper ? "Available" : "Downloaded")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                 default:
                     HStack {
                         Image(systemName: "checkmark.circle")
-                            .foregroundColor(.blue)
-                        Text("Downloaded")
+                            .foregroundColor(modelSource == .macWhisper ? .purple : .blue)
+                        Text(modelSource == .macWhisper ? "Available" : "Downloaded")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -191,7 +216,7 @@ struct ModelCard: View {
                         Label("Download", systemImage: "arrow.down.circle")
                     }
                     .buttonStyle(.bordered)
-                    
+
                     if let error = downloadError {
                         Text(error)
                             .font(.caption2)

@@ -29,6 +29,7 @@ class ModelStateManager: ObservableObject {
         }
     }
     @Published var modelLoadingStates: [String: ModelLoadingState] = [:]
+    @Published var modelSources: [String: ModelSource] = [:]  // Track where each model comes from
     @Published var loadedWhisperKit: WhisperKit? = nil
     private var currentLoadingTask: Task<WhisperKit?, Never>? = nil
     
@@ -40,26 +41,33 @@ class ModelStateManager: ObservableObject {
     func checkDownloadedModels() async {
         // Don't reset to empty - keep existing state until check completes
         var newDownloadedModels: Set<String> = []
+        var newModelSources: [String: ModelSource] = [:]
         let modelManager = WhisperModelManager.shared
-        
+
         // Process each model in parallel for faster checking
-        await withTaskGroup(of: (String, Bool).self) { group in
+        await withTaskGroup(of: (String, Bool, ModelSource?).self) { group in
             for model in ModelData.availableModels {
                 let whisperKitModelName = model.whisperKitModelName
-                let modelPath = getModelPath(for: whisperKitModelName)
-                
+
                 group.addTask {
-                    // First check if directory exists
-                    if !FileManager.default.fileExists(atPath: modelPath.path) {
-                        return (model.name, false)
+                    // Check if model exists in either location
+                    guard let source = modelManager.getModelSource(for: whisperKitModelName) else {
+                        return (model.name, false, nil)
                     }
-                    
-                    // Check if we have metadata marking it as complete
+
+                    let modelPath = modelManager.getModelPath(for: whisperKitModelName)
+
+                    // For MacWhisper models, just validate they exist (already checked by getModelSource)
+                    if source == .macWhisper {
+                        return (model.name, true, source)
+                    }
+
+                    // For app models, check metadata or validate by loading
                     if modelManager.isModelDownloaded(whisperKitModelName) {
                         // Trust our metadata if it says complete
-                        return (model.name, true)
+                        return (model.name, true, source)
                     }
-                    
+
                     // Try to load the model with WhisperKit to validate it's complete
                     do {
                         let _ = try await WhisperKit(
@@ -68,30 +76,32 @@ class ModelStateManager: ObservableObject {
                             logLevel: .error,
                             load: true
                         )
-                        
+
                         // If loading succeeded, mark it in our manager
                         modelManager.markModelAsDownloaded(whisperKitModelName)
-                        return (model.name, true)
+                        return (model.name, true, source)
                     } catch {
                         // Model exists but is incomplete or corrupted
                         print("Model \(model.name) exists but is incomplete")
-                        return (model.name, false)
+                        return (model.name, false, nil)
                     }
                 }
             }
-            
+
             // Collect results
-            for await (modelName, isComplete) in group {
-                if isComplete {
+            for await (modelName, isComplete, source) in group {
+                if isComplete, let source = source {
                     newDownloadedModels.insert(modelName)
+                    newModelSources[modelName] = source
                 }
             }
         }
-        
+
         // Update the published properties
         await MainActor.run {
             self.downloadedModels = newDownloadedModels
-            
+            self.modelSources = newModelSources
+
             // Update loading states for downloaded models
             for model in ModelData.availableModels {
                 if newDownloadedModels.contains(model.name) {
@@ -103,7 +113,7 @@ class ModelStateManager: ObservableObject {
                     setLoadingState(for: model.name, state: .notDownloaded)
                 }
             }
-            
+
             // If no model is selected but we have downloaded models, select the first one
             // Or if the selected model is no longer available, select the first one
             if let selected = self.selectedModel, !newDownloadedModels.contains(selected) {
@@ -112,7 +122,7 @@ class ModelStateManager: ObservableObject {
             } else if self.selectedModel == nil && !newDownloadedModels.isEmpty {
                 self.selectedModel = newDownloadedModels.first
             }
-            
+
             self.isCheckingModels = false
         }
     }
@@ -120,12 +130,15 @@ class ModelStateManager: ObservableObject {
     func markModelAsDownloaded(_ modelName: String) {
         downloadedModels.insert(modelName)
         setLoadingState(for: modelName, state: .downloaded)
-        
+
+        // Track source (always .app for newly downloaded models)
+        modelSources[modelName] = .app
+
         // If this is the first downloaded model and no model is selected, select it
         if selectedModel == nil {
             selectedModel = modelName
         }
-        
+
         // Also mark in persistent storage
         if let model = ModelData.availableModels.first(where: { $0.name == modelName }) {
             WhisperModelManager.shared.markModelAsDownloaded(model.whisperKitModelName)
@@ -133,14 +146,12 @@ class ModelStateManager: ObservableObject {
     }
     
     func getModelPath(for whisperKitModelName: String) -> URL {
-        // Use the same path structure as WhisperKit
-        let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        return documentsPath
-            .appendingPathComponent("huggingface")
-            .appendingPathComponent("models")
-            .appendingPathComponent("argmaxinc")
-            .appendingPathComponent("whisperkit-coreml")
-            .appendingPathComponent(whisperKitModelName)
+        // Use WhisperModelManager which checks both app and MacWhisper directories
+        return WhisperModelManager.shared.getModelPath(for: whisperKitModelName)
+    }
+
+    func getModelSource(for modelName: String) -> ModelSource? {
+        return modelSources[modelName]
     }
     
     func getLoadingState(for modelName: String) -> ModelLoadingState {
@@ -186,9 +197,10 @@ class ModelStateManager: ObservableObject {
             
             let whisperKitModelName = modelInfo.whisperKitModelName
             let modelPath = getModelPath(for: whisperKitModelName)
-            
-            guard WhisperModelManager.shared.isModelDownloaded(whisperKitModelName) else {
-                print("Model \(modelName) is not downloaded")
+
+            // Check if model exists (either in app directory or MacWhisper)
+            guard WhisperModelManager.shared.getModelSource(for: whisperKitModelName) != nil else {
+                print("Model \(modelName) is not available")
                 return nil
             }
             

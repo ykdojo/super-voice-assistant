@@ -42,16 +42,30 @@ class AudioTranscriptionManager {
     
     private func configureInputDevice() {
         let deviceManager = AudioDeviceManager.shared
-        
-        guard !deviceManager.useSystemDefaultInput,
-              let device = deviceManager.getCurrentInputDevice(),
-              let deviceID = deviceManager.getAudioDeviceID(for: device.uid) else {
+
+        let deviceID: AudioDeviceID?
+        let deviceName: String
+
+        if deviceManager.useSystemDefaultInput {
+            // Explicitly query and set the current system default
+            deviceID = deviceManager.getSystemDefaultInputDeviceID()
+            deviceName = "System Default"
+        } else if let device = deviceManager.getCurrentInputDevice() {
+            deviceID = deviceManager.getAudioDeviceID(for: device.uid)
+            deviceName = device.name
+        } else {
             return
         }
-        
+
+        guard let deviceID = deviceID else { return }
+
         do {
             try inputNode.auAudioUnit.setDeviceID(deviceID)
-            print("✅ Set input device to: \(device.name)")
+
+            // Log format info for debugging
+            let format = inputNode.outputFormat(forBus: 0)
+            print("✅ Set input device to: \(deviceName) (ID: \(deviceID))")
+            print("   Format: \(format.sampleRate)Hz, \(format.channelCount) channels")
         } catch {
             print("❌ Failed to set input device: \(error)")
         }

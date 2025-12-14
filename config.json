@@ -1,5 +1,9 @@
 {
   "textReplacements" : {
+    "CloakCode" : "Claude Code",
+    "cloakcode" : "claude code",
+    "Cloak Code" : "Claude Code",
+    "cloak code" : "claude code",
     "CloudCode" : "Claude Code",
     "cloudcode" : "claudecode",
     "Cloud Code" : "Claude Code",

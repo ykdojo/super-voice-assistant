@@ -40,7 +40,7 @@ class TextReplacements {
         loadConfig()
     }
 
-    /// Process text: apply replacements and strip enclosing quotes
+    /// Process text: apply replacements, strip enclosing quotes, and clean formatting
     func processText(_ text: String) -> String {
         var result = text
         for (find, replace) in config.textReplacements {
@@ -50,7 +50,33 @@ class TextReplacements {
         // Remove enclosing quotation marks if the entire string is wrapped in them
         result = stripEnclosingQuotes(result)
 
+        // Clean up bullet point formatting (leading hyphens and continuation spaces)
+        result = cleanBulletFormatting(result)
+
         return result
+    }
+
+    /// Removes leading hyphens and continuation line spaces from transcription output
+    private func cleanBulletFormatting(_ text: String) -> String {
+        var lines = text.components(separatedBy: "\n")
+
+        for i in 0..<lines.count {
+            var line = lines[i]
+
+            // Remove leading "- " (hyphen followed by space) from lines
+            if line.hasPrefix("- ") {
+                line = String(line.dropFirst(2))
+            }
+
+            // Remove single leading space (continuation line formatting)
+            if line.hasPrefix(" ") && !line.hasPrefix("  ") {
+                line = String(line.dropFirst(1))
+            }
+
+            lines[i] = line
+        }
+
+        return lines.joined(separator: "\n")
     }
 
     /// Removes quotation marks if they enclose the entire string

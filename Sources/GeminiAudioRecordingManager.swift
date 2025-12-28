@@ -23,6 +23,7 @@ class GeminiAudioRecordingManager {
 
     // Recording state
     var isRecording = false
+    private var isStartingRecording = false
     private var escapeKeyMonitor: Any?
 
     // Gemini transcriber
@@ -40,34 +41,10 @@ class GeminiAudioRecordingManager {
     }
 
     private func configureInputDevice() {
-        let deviceManager = AudioDeviceManager.shared
-
-        let deviceID: AudioDeviceID?
-        let deviceName: String
-
-        if deviceManager.useSystemDefaultInput {
-            // Explicitly query and set the current system default
-            deviceID = deviceManager.getSystemDefaultInputDeviceID()
-            deviceName = "System Default"
-        } else if let device = deviceManager.getCurrentInputDevice() {
-            deviceID = deviceManager.getAudioDeviceID(for: device.uid)
-            deviceName = device.name
-        } else {
-            return
-        }
-
-        guard let deviceID = deviceID else { return }
-
-        do {
-            try inputNode.auAudioUnit.setDeviceID(deviceID)
-
-            // Log format info for debugging
-            let format = inputNode.outputFormat(forBus: 0)
-            print("✅ Set input device to: \(deviceName) (ID: \(deviceID))")
-            print("   Format: \(format.sampleRate)Hz, \(format.channelCount) channels")
-        } catch {
-            print("❌ Failed to set input device: \(error)")
-        }
+        // Always use system default - calling setDeviceID causes installTap to block
+        let format = inputNode.outputFormat(forBus: 0)
+        print("✅ Using system default input device")
+        print("   Format: \(format.sampleRate)Hz, \(format.channelCount) channels")
     }
 
     private func requestMicrophonePermission() {
@@ -93,6 +70,11 @@ class GeminiAudioRecordingManager {
     }
 
     func toggleRecording() {
+        // Prevent race condition if called while starting
+        if isStartingRecording {
+            return
+        }
+
         isRecording.toggle()
 
         if isRecording {
@@ -103,9 +85,12 @@ class GeminiAudioRecordingManager {
     }
 
     func startRecording() {
+        isStartingRecording = true
         audioBuffer.removeAll()
 
-        // Reconfigure input device in case settings changed
+        // Create fresh audio engine to avoid state issues
+        audioEngine = AVAudioEngine()
+        inputNode = audioEngine.inputNode
         configureInputDevice()
 
         // Set up global Escape key monitor to cancel recording
@@ -160,11 +145,14 @@ class GeminiAudioRecordingManager {
         }
 
         do {
+            audioEngine.prepare()
             try audioEngine.start()
             print("🎤 Gemini audio recording started...")
+            isStartingRecording = false
         } catch {
             print("Failed to start audio engine: \(error)")
             isRecording = false
+            isStartingRecording = false
         }
     }
 

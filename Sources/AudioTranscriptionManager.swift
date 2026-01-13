@@ -3,6 +3,7 @@ import AVFoundation
 import WhisperKit
 import AppKit
 import SharedModels
+import CoreAudio
 
 protocol AudioTranscriptionManagerDelegate: AnyObject {
     func audioLevelDidUpdate(db: Float)
@@ -42,9 +43,41 @@ class AudioTranscriptionManager {
     }
     
     private func configureInputDevice() {
-        // Always use system default - calling setDeviceID causes installTap to block
+        let deviceManager = AudioDeviceManager.shared
+
+        // Check if user selected a specific device - set it as system default temporarily
+        if !deviceManager.useSystemDefaultInput,
+           let selectedUID = deviceManager.selectedInputDeviceUID,
+           let deviceID = deviceManager.getAudioDeviceID(for: selectedUID) {
+
+            // Set as system default input device
+            var propertyAddress = AudioObjectPropertyAddress(
+                mSelector: kAudioHardwarePropertyDefaultInputDevice,
+                mScope: kAudioObjectPropertyScopeGlobal,
+                mElement: kAudioObjectPropertyElementMain
+            )
+
+            var deviceIDValue = deviceID
+            let status = AudioObjectSetPropertyData(
+                AudioObjectID(kAudioObjectSystemObject),
+                &propertyAddress,
+                0,
+                nil,
+                UInt32(MemoryLayout<AudioDeviceID>.size),
+                &deviceIDValue
+            )
+
+            if status == noErr {
+                let deviceName = deviceManager.availableInputDevices.first { $0.uid == selectedUID }?.name ?? selectedUID
+                print("✅ Set system default input to: \(deviceName)")
+            } else {
+                print("⚠️ Failed to set default input device (error: \(status))")
+            }
+        } else {
+            print("✅ Using system default input device")
+        }
+
         let format = inputNode.outputFormat(forBus: 0)
-        print("✅ Using system default input device")
         print("   Format: \(format.sampleRate)Hz, \(format.channelCount) channels")
     }
     

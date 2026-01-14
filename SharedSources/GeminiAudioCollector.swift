@@ -27,7 +27,7 @@ public class GeminiAudioCollector {
     }
     
     private func performCollection(text: String, continuation: AsyncThrowingStream<Data, Error>.Continuation, onComplete: ((Result<Void, Error>) -> Void)? = nil) async throws {
-        guard let url = URL(string: "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=\(apiKey)") else {
+        guard let url = URL(string: "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=\(apiKey)") else {
             throw GeminiAudioCollectorError.invalidURL
         }
         
@@ -48,7 +48,7 @@ public class GeminiAudioCollector {
                 let setupMessage = """
                 {
                     "setup": {
-                        "model": "models/gemini-2.0-flash-live-001",
+                        "model": "models/gemini-2.5-flash-native-audio-preview-12-2025",
                         "generation_config": {
                             "response_modalities": ["AUDIO"],
                             "speech_config": {

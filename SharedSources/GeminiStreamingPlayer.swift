@@ -8,7 +8,7 @@ public class GeminiStreamingPlayer {
     private let timePitchEffect = AVAudioUnitTimePitch()
     private let audioFormat: AVAudioFormat
     
-    public init(playbackSpeed: Float = 1.15) {
+    public init(playbackSpeed: Float = 1.25) {
         self.audioFormat = AVAudioFormat(standardFormatWithSampleRate: 24000, channels: 1)!
         
         // Setup audio processing chain (same as GeminiTTS)

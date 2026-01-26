@@ -11,6 +11,17 @@ public class GeminiAudioCollector {
     public init(apiKey: String) {
         self.apiKey = apiKey
     }
+
+    deinit {
+        closeConnection()
+    }
+
+    /// Explicitly close the WebSocket connection to free resources
+    public func closeConnection() {
+        webSocketTask?.cancel(with: .goingAway, reason: nil)
+        webSocketTask = nil
+        didSendSetup = false
+    }
     
     public func collectAudioChunks(from text: String, onComplete: ((Result<Void, Error>) -> Void)? = nil) -> AsyncThrowingStream<Data, Error> {
         AsyncThrowingStream { continuation in
@@ -142,6 +153,8 @@ public class GeminiAudioCollector {
             continuation.finish()
             
         } catch {
+            // Close connection on error to prevent resource leaks
+            closeConnection()
             throw GeminiAudioCollectorError.collectionError(error)
         }
     }

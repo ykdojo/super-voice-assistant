@@ -22,6 +22,7 @@ class AudioTranscriptionManager {
     private var inputNode: AVAudioInputNode!
     private var audioBuffer: [Float] = []
     private let sampleRate: Double = 16000
+    private let maxBufferSamples = 16000 * 300  // 5 minutes max to prevent memory explosion
     
     // Recording state
     var isRecording = false
@@ -151,7 +152,7 @@ class AudioTranscriptionManager {
             if let channelData = channelData {
                 // Collect raw samples
                 let samples = Array(UnsafeBufferPointer(start: channelData, count: frameLength))
-                
+
                 // Resample to 16kHz if needed for WhisperKit
                 if inputSampleRate != self.sampleRate {
                     let ratio = Int(inputSampleRate / self.sampleRate)
@@ -159,6 +160,16 @@ class AudioTranscriptionManager {
                     self.audioBuffer.append(contentsOf: resampledSamples)
                 } else {
                     self.audioBuffer.append(contentsOf: samples)
+                }
+
+                // Prevent memory explosion from runaway recording
+                if self.audioBuffer.count > self.maxBufferSamples {
+                    print("⚠️ Audio buffer limit reached (5 min). Auto-stopping recording.")
+                    DispatchQueue.main.async {
+                        self.isRecording = false
+                        self.stopRecording()
+                    }
+                    return
                 }
                 
                 // Calculate audio level

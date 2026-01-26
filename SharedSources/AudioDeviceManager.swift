@@ -37,6 +37,10 @@ public class AudioDeviceManager: ObservableObject {
         refreshDeviceList()
         setupNotifications()
     }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
     
     private func loadPreferences() {
         useSystemDefaultInput = userDefaults.object(forKey: useSystemInputKey) as? Bool ?? true

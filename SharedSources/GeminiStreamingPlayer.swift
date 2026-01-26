@@ -10,17 +10,27 @@ public class GeminiStreamingPlayer {
     
     public init(playbackSpeed: Float = 1.2) {
         self.audioFormat = AVAudioFormat(standardFormatWithSampleRate: 24000, channels: 1)!
-        
+
         // Setup audio processing chain (same as GeminiTTS)
         timePitchEffect.rate = playbackSpeed
         timePitchEffect.pitch = 0 // Keep pitch unchanged
-        
+
         audioEngine.attach(playerNode)
         audioEngine.attach(timePitchEffect)
         audioEngine.connect(playerNode, to: timePitchEffect, format: audioFormat)
         audioEngine.connect(timePitchEffect, to: audioEngine.mainMixerNode, format: audioFormat)
-        
+
         // Don't configure on init to avoid crashes, will configure when starting engine
+    }
+
+    deinit {
+        stopAudioEngine()
+    }
+
+    /// Reset player state to free scheduled buffers
+    public func reset() {
+        playerNode.stop()
+        playerNode.reset()
     }
     
     private func configureOutputDevice() {
@@ -52,6 +62,7 @@ public class GeminiStreamingPlayer {
     public func stopAudioEngine() {
         print("🛑 Stopping audio engine and player")
         playerNode.stop()
+        playerNode.reset()  // Clear any scheduled buffers to free memory
         if audioEngine.isRunning {
             audioEngine.stop()
         }
@@ -90,13 +101,17 @@ public class GeminiStreamingPlayer {
             }
             
             print("✅ All audio chunks scheduled for playback")
-            
+
             // Wait for playback to complete
             let totalDurationSeconds = Double(totalBytesPlayed) / Double(audioFormat.sampleRate * 2) // 16-bit = 2 bytes per sample
             print("⏱️ Waiting \(String(format: "%.1f", totalDurationSeconds))s for playback completion")
             try await Task.sleep(nanoseconds: UInt64(totalDurationSeconds * 1_000_000_000))
-            
+
+            // Clean up after playback
+            reset()
+
         } catch {
+            reset()  // Clean up on error too
             throw GeminiStreamingPlayerError.playbackError(error)
         }
     }
@@ -146,6 +161,9 @@ public class GeminiStreamingPlayer {
         
         print("✅ Playback complete: \(totalBytesPlayed) bytes")
         print("🎉 Full text streaming completed")
+
+        // Clean up after playback
+        reset()
     }
     
     private func createPCMBuffer(from audioData: Data) throws -> AVAudioPCMBuffer {

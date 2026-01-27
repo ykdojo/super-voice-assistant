@@ -7,14 +7,31 @@ class MemoryMonitor {
     private var timer: Timer?
     private var lastLoggedThreshold: UInt64 = 0
     private let thresholdsMB: [UInt64] = [500, 1000, 2000, 5000, 10000, 20000, 50000]
+    private var logFileHandle: FileHandle?
+    private let logFilePath: String
 
-    private init() {}
+    private init() {
+        // Store log in ~/Library/Logs/SuperVoiceAssistant/
+        let logsDir = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Logs/SuperVoiceAssistant")
+        try? FileManager.default.createDirectory(at: logsDir, withIntermediateDirectories: true)
+        logFilePath = logsDir.appendingPathComponent("memory.log").path
+    }
 
     /// Start monitoring memory usage
     func start(intervalSeconds: Double = 1.0) {
         stop()
 
-        print("🔍 Memory monitor started (checking every \(intervalSeconds)s)")
+        // Open log file for appending
+        if !FileManager.default.fileExists(atPath: logFilePath) {
+            FileManager.default.createFile(atPath: logFilePath, contents: nil)
+        }
+        logFileHandle = FileHandle(forWritingAtPath: logFilePath)
+        logFileHandle?.seekToEndOfFile()
+
+        let message = "🔍 Memory monitor started (checking every \(intervalSeconds)s) - Log: \(logFilePath)"
+        print(message)
+        writeToLog(message)
         logCurrentMemory()
 
         timer = Timer.scheduledTimer(withTimeInterval: intervalSeconds, repeats: true) { [weak self] _ in
@@ -26,6 +43,18 @@ class MemoryMonitor {
     func stop() {
         timer?.invalidate()
         timer = nil
+        logFileHandle?.closeFile()
+        logFileHandle = nil
+    }
+
+    /// Write message to both console and log file
+    private func writeToLog(_ message: String) {
+        let timestamp = ISO8601DateFormatter().string(from: Date())
+        let logLine = "[\(timestamp)] \(message)\n"
+        if let data = logLine.data(using: .utf8) {
+            logFileHandle?.write(data)
+            logFileHandle?.synchronizeFile()  // Ensure it's written immediately
+        }
     }
 
     /// Get current memory usage in bytes
@@ -50,7 +79,9 @@ class MemoryMonitor {
     func logCurrentMemory() {
         let bytes = currentMemoryUsage()
         let mb = bytes / (1024 * 1024)
-        print("📊 Current memory: \(mb) MB")
+        let message = "📊 Current memory: \(mb) MB"
+        print(message)
+        writeToLog(message)
     }
 
     private func checkMemory() {
@@ -67,7 +98,9 @@ class MemoryMonitor {
 
         // Log if we crossed a new threshold
         if crossedThreshold > lastLoggedThreshold {
-            print("⚠️ MEMORY WARNING: \(mb) MB (crossed \(crossedThreshold) MB threshold)")
+            let message = "⚠️ MEMORY WARNING: \(mb) MB (crossed \(crossedThreshold) MB threshold)"
+            print(message)
+            writeToLog(message)
             logMemoryContext()
             lastLoggedThreshold = crossedThreshold
         }
@@ -81,14 +114,19 @@ class MemoryMonitor {
     /// Log context about what might be using memory
     private func logMemoryContext() {
         let timestamp = ISO8601DateFormatter().string(from: Date())
-        print("   Timestamp: \(timestamp)")
-        print("   Thread: \(Thread.current)")
+        var context = """
+           Timestamp: \(timestamp)
+           Thread: \(Thread.current)
+           Stack trace:
+        """
 
         // Log call stack for debugging
         let symbols = Thread.callStackSymbols.prefix(10)
-        print("   Stack trace:")
         for symbol in symbols {
-            print("     \(symbol)")
+            context += "\n     \(symbol)"
         }
+
+        print(context)
+        writeToLog(context)
     }
 }

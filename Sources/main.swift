@@ -60,6 +60,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
     private var videoTranscriber = VideoTranscriber()
     
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Start memory monitoring to catch sporadic memory explosions
+        MemoryMonitor.shared.start(intervalSeconds: 2.0)
+
         // Load environment variables
         loadEnvironmentVariables()
         

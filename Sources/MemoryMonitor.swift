@@ -6,7 +6,7 @@ class MemoryMonitor {
 
     private var timer: Timer?
     private var lastLoggedThreshold: UInt64 = 0
-    private let thresholdsMB: [UInt64] = [500, 1000, 2000, 5000, 10000, 20000, 50000]
+    private let thresholdsMB: [UInt64] = [5000, 10000, 20000, 50000, 100000]
     private var logFileHandle: FileHandle?
     private let logFilePath: String
 

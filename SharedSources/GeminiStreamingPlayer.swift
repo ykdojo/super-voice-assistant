@@ -116,20 +116,51 @@ public class GeminiStreamingPlayer {
         }
     }
     
-    public func playText(_ text: String, audioCollector: GeminiAudioCollector) async throws {
+    public func playText(_ text: String, audioCollector: GeminiAudioCollector, maxRetries: Int = 3) async throws {
         try startAudioEngine()
-        
+
         // Split text into sentences and rejoin with line breaks for natural pauses
         let sentences = SmartSentenceSplitter.splitIntoSentences(text)
         print("📖 Split text into \(sentences.count) sentences")
-        
+
         // Join sentences with triple line breaks to encourage model to add longer pauses
         let formattedText = sentences.joined(separator: "\n\n\n")
         print("📝 Formatted text with line breaks between sentences")
-        
+
+        var lastError: Error?
+
+        for attempt in 1...maxRetries {
+            do {
+                try await playTextAttempt(formattedText, audioCollector: audioCollector)
+                return // Success
+            } catch {
+                lastError = error
+
+                // Check if it's a network error worth retrying
+                let nsError = error as NSError
+                let isNetworkError = nsError.domain == NSURLErrorDomain ||
+                    (error as? GeminiAudioCollectorError) != nil
+
+                if isNetworkError && attempt < maxRetries {
+                    print("⚠️ TTS attempt \(attempt) failed, retrying in 1s... Error: \(error.localizedDescription)")
+                    try await Task.sleep(nanoseconds: 1_000_000_000) // 1 second delay
+                    reset() // Reset player state before retry
+                } else {
+                    throw error
+                }
+            }
+        }
+
+        // Should not reach here, but just in case
+        if let error = lastError {
+            throw error
+        }
+    }
+
+    private func playTextAttempt(_ formattedText: String, audioCollector: GeminiAudioCollector) async throws {
         var isFirstChunk = true
         var totalBytesPlayed = 0
-        
+
         // Start collection for the formatted text (all at once)
         let audioStream = audioCollector.collectAudioChunks(from: formattedText) { result in
             switch result {
@@ -139,26 +170,26 @@ public class GeminiStreamingPlayer {
                 print("❌ Audio collection failed: \(error)")
             }
         }
-        
+
         // Stream and play audio chunks as they arrive
         for try await chunk in audioStream {
             try Task.checkCancellation()
-            
+
             let buffer = try createPCMBuffer(from: chunk)
-            
+
             if isFirstChunk {
                 print("▶️ Starting playback")
                 playerNode.play()
                 isFirstChunk = false
             }
-            
+
             playerNode.scheduleBuffer(buffer, completionHandler: nil)
             totalBytesPlayed += chunk.count
-            
+
             // Small pacing to avoid overwhelming scheduling
             try await Task.sleep(nanoseconds: 1_000_000) // 1ms between chunks
         }
-        
+
         print("✅ Playback complete: \(totalBytesPlayed) bytes")
         print("🎉 Full text streaming completed")
 

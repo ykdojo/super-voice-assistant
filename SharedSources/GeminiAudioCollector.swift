@@ -42,13 +42,13 @@ public class GeminiAudioCollector {
             throw GeminiAudioCollectorError.invalidURL
         }
         
-        // Ensure a single, reusable WebSocket connection
-        if webSocketTask == nil {
-            let task = session.webSocketTask(with: url)
-            task.resume()
-            webSocketTask = task
-            didSendSetup = false
-        }
+        // Always create a fresh connection to avoid stale socket issues
+        // (Gemini WebSocket connections timeout after ~10 minutes of idle)
+        closeConnection()
+        let task = session.webSocketTask(with: url)
+        task.resume()
+        webSocketTask = task
+
         guard let webSocketTask else {
             throw GeminiAudioCollectorError.invalidURL
         }

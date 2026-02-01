@@ -253,40 +253,51 @@ class AudioTranscriptionManager {
             delegate?.recordingWasSkippedDueToSilence()
             return
         }
-        
+
         // Calculate RMS (Root Mean Square) to detect silence
         let rms = sqrt(audioBuffer.reduce(0) { $0 + $1 * $1 } / Float(audioBuffer.count))
         let db = 20 * log10(max(rms, 0.00001))
-        
+
         // Threshold for silence detection (stricter to avoid false positives)
         // Lowered to -55dB to capture quieter audio
         let silenceThreshold: Float = -55.0
-        
+
         if db < silenceThreshold {
             print("Audio too quiet (RMS: \(rms), dB: \(db)). Skipping transcription.")
             // Reset the status bar icon when skipping quiet audio
             delegate?.recordingWasSkippedDueToSilence()
             return
         }
-        
+
         // Start transcription
         delegate?.transcriptionDidStart()
         isTranscribing = true
-        
+
+        // Route to appropriate transcriber based on selected engine
+        switch ModelStateManager.shared.selectedEngine {
+        case .whisperKit:
+            await transcribeWithWhisperKit()
+        case .parakeet:
+            await transcribeWithParakeet()
+        }
+    }
+
+    @MainActor
+    private func transcribeWithWhisperKit() async {
         // Load model if not already loaded
         if ModelStateManager.shared.loadedWhisperKit == nil {
             if let selectedModel = ModelStateManager.shared.selectedModel {
                 _ = await ModelStateManager.shared.loadModel(selectedModel)
             }
         }
-        
+
         guard let whisperKit = ModelStateManager.shared.loadedWhisperKit else {
             print("WhisperKit not initialized - please select and download a model in Settings")
             isTranscribing = false
-            delegate?.transcriptionDidFail(error: "No model loaded. Please select a model in Settings.")
+            delegate?.transcriptionDidFail(error: "No WhisperKit model loaded. Please select a model in Settings.")
             return
         }
-        
+
         // Pad short audio with 1 second of silence to improve transcription reliability
         let paddingThresholdSeconds = 1.5
         let paddingDurationSeconds = 1.0
@@ -299,7 +310,7 @@ class AudioTranscriptionManager {
             print("Padded short audio with \(paddingDurationSeconds)s of silence")
         }
 
-        print("Transcribing \(audioBuffer.count) samples (\(Double(audioBuffer.count) / sampleRate) seconds)...")
+        print("Transcribing \(audioBuffer.count) samples (\(Double(audioBuffer.count) / sampleRate) seconds) with WhisperKit...")
 
         do {
             let transcriptionResult = try await whisperKit.transcribe(
@@ -321,32 +332,79 @@ class AudioTranscriptionManager {
                     supressTokens: nil
                 )
             )
-            
+
             isTranscribing = false
-            
+
             if let firstResult = transcriptionResult.first {
                 var transcription = firstResult.text.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
-                if !transcription.isEmpty {
-                    // Apply text replacements from config
-                    transcription = TextReplacements.shared.processText(transcription)
-
-                    print("✅ Transcription: \"\(transcription)\"")
-
-                    // Save to history
-                    TranscriptionHistory.shared.addEntry(transcription)
-
-                    // Notify delegate
-                    delegate?.transcriptionDidComplete(text: transcription)
-                } else {
-                    print("No transcription generated (possibly silence)")
-                    // Reset UI and avoid leaving the processing indicator running
-                    delegate?.recordingWasSkippedDueToSilence()
-                }
+                handleTranscriptionResult(transcription)
             }
         } catch {
-            print("Transcription error: \(error)")
+            print("WhisperKit transcription error: \(error)")
             isTranscribing = false
             delegate?.transcriptionDidFail(error: "Transcription failed: \(error.localizedDescription)")
+        }
+    }
+
+    @MainActor
+    private func transcribeWithParakeet() async {
+        // Load model if not already loaded
+        if ModelStateManager.shared.loadedParakeetTranscriber == nil ||
+           ModelStateManager.shared.parakeetLoadingState != .loaded {
+            await ModelStateManager.shared.loadParakeetModel()
+        }
+
+        guard let transcriber = ModelStateManager.shared.loadedParakeetTranscriber,
+              transcriber.isReady else {
+            print("Parakeet not initialized - please select Parakeet in Settings and wait for model to load")
+            isTranscribing = false
+            delegate?.transcriptionDidFail(error: "No Parakeet model loaded. Please wait for model to download in Settings.")
+            return
+        }
+
+        // Pad short audio with 1 second of silence to improve transcription reliability
+        let paddingThresholdSeconds = 1.5
+        let paddingDurationSeconds = 1.0
+        let minSamplesForPadding = Int(paddingThresholdSeconds * sampleRate)
+        let paddingSamples = Int(paddingDurationSeconds * sampleRate)
+
+        var paddedBuffer = audioBuffer
+        if audioBuffer.count < minSamplesForPadding {
+            paddedBuffer.append(contentsOf: [Float](repeating: 0.0, count: paddingSamples))
+            print("Padded short audio with \(paddingDurationSeconds)s of silence")
+        }
+
+        print("Transcribing \(audioBuffer.count) samples (\(Double(audioBuffer.count) / sampleRate) seconds) with Parakeet...")
+
+        do {
+            let transcription = try await transcriber.transcribe(audioSamples: paddedBuffer)
+            isTranscribing = false
+            handleTranscriptionResult(transcription)
+        } catch {
+            print("Parakeet transcription error: \(error)")
+            isTranscribing = false
+            delegate?.transcriptionDidFail(error: "Transcription failed: \(error.localizedDescription)")
+        }
+    }
+
+    @MainActor
+    private func handleTranscriptionResult(_ rawTranscription: String) {
+        var transcription = rawTranscription.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+        if !transcription.isEmpty {
+            // Apply text replacements from config
+            transcription = TextReplacements.shared.processText(transcription)
+
+            print("Transcription: \"\(transcription)\"")
+
+            // Save to history
+            TranscriptionHistory.shared.addEntry(transcription)
+
+            // Notify delegate
+            delegate?.transcriptionDidComplete(text: transcription)
+        } else {
+            print("No transcription generated (possibly silence)")
+            // Reset UI and avoid leaving the processing indicator running
+            delegate?.recordingWasSkippedDueToSilence()
         }
     }
 }

@@ -54,16 +54,17 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/sindresorhus/KeyboardShortcuts", exact: "1.8.0"),
-        .package(url: "https://github.com/argmaxinc/WhisperKit", from: "0.13.0")
+        .package(url: "https://github.com/argmaxinc/WhisperKit", from: "0.13.0"),
+        .package(url: "https://github.com/FluidInference/FluidAudio.git", from: "0.7.9")
     ],
     targets: [
         .target(
             name: "SharedModels",
-            dependencies: ["WhisperKit"],
+            dependencies: ["WhisperKit", "FluidAudio"],
             path: "SharedSources"),
         .executableTarget(
             name: "SuperVoiceAssistant",
-            dependencies: ["KeyboardShortcuts", "WhisperKit", "SharedModels"],
+            dependencies: ["KeyboardShortcuts", "WhisperKit", "SharedModels", "FluidAudio"],
             path: "Sources",
             resources: [
                 .copy("Assets.xcassets"),

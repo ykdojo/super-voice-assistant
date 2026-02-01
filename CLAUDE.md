@@ -55,4 +55,5 @@
 - **Cmd+Opt+S**: Text-to-speech with Gemini
 - **Cmd+Opt+C**: Screen recording with video transcription
 - **Cmd+Opt+A**: Show transcription history
+- **Cmd+Opt+V**: Paste last transcription at cursor
 

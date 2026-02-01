@@ -38,6 +38,7 @@ extension KeyboardShortcuts.Name {
     static let readSelectedText = Self("readSelectedText")
     static let toggleScreenRecording = Self("toggleScreenRecording")
     static let geminiAudioRecording = Self("geminiAudioRecording")
+    static let pasteLastTranscription = Self("pasteLastTranscription")
 }
 
 class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDelegate, GeminiAudioRecordingManagerDelegate {
@@ -47,6 +48,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
 
     private var displayTimer: Timer?
     private var modelCancellable: AnyCancellable?
+    private var engineCancellable: AnyCancellable?
+    private var parakeetVersionCancellable: AnyCancellable?
     private var transcriptionTimer: Timer?
     private var videoProcessingTimer: Timer?
     private var audioManager: AudioTranscriptionManager!
@@ -94,6 +97,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
         menu.addItem(NSMenuItem(title: "History: Press Command+Option+A", action: nil, keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "Read Selected Text: Press Command+Option+S", action: nil, keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "Screen Recording: Press Command+Option+C", action: nil, keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "Paste Last Transcription: Press Command+Option+V", action: nil, keyEquivalent: ""))
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Settings...", action: #selector(openSettings), keyEquivalent: ","))
         menu.addItem(NSMenuItem(title: "View History...", action: #selector(showTranscriptionHistory), keyEquivalent: "h"))
@@ -108,6 +112,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
         KeyboardShortcuts.setShortcut(.init(.a, modifiers: [.command, .option]), for: .showHistory)
         KeyboardShortcuts.setShortcut(.init(.s, modifiers: [.command, .option]), for: .readSelectedText)
         KeyboardShortcuts.setShortcut(.init(.c, modifiers: [.command, .option]), for: .toggleScreenRecording)
+        KeyboardShortcuts.setShortcut(.init(.v, modifiers: [.command, .option]), for: .pasteLastTranscription)
         
         // Set up keyboard shortcut handlers
         KeyboardShortcuts.onKeyUp(for: .startRecording) { [weak self] in
@@ -184,6 +189,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
             self?.toggleScreenRecording()
         }
 
+        KeyboardShortcuts.onKeyUp(for: .pasteLastTranscription) { [weak self] in
+            self?.pasteLastTranscription()
+        }
+
         // Set up audio manager
         audioManager = AudioTranscriptionManager()
         audioManager.delegate = self
@@ -196,23 +205,48 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
         Task {
             await ModelStateManager.shared.checkDownloadedModels()
             print("Model check completed at startup")
-            
-            // Load the initially selected model
-            if let selectedModel = ModelStateManager.shared.selectedModel {
-                _ = await ModelStateManager.shared.loadModel(selectedModel)
+
+            // Load the initially selected model based on engine
+            switch ModelStateManager.shared.selectedEngine {
+            case .whisperKit:
+                if let selectedModel = ModelStateManager.shared.selectedModel {
+                    _ = await ModelStateManager.shared.loadModel(selectedModel)
+                }
+            case .parakeet:
+                await ModelStateManager.shared.loadParakeetModel()
             }
         }
-        
-        // Observe model selection changes
+
+        // Observe WhisperKit model selection changes
         modelCancellable = ModelStateManager.shared.$selectedModel
             .dropFirst() // Skip the initial value
             .sink { selectedModel in
                 guard let selectedModel = selectedModel else { return }
+                // Only load if WhisperKit is the selected engine
+                guard ModelStateManager.shared.selectedEngine == .whisperKit else { return }
                 Task {
                     // Load the new model
                     _ = await ModelStateManager.shared.loadModel(selectedModel)
                 }
             }
+
+        // Observe engine changes - only handle memory management, not loading
+        // Loading is triggered by user actions (selecting/downloading models)
+        engineCancellable = ModelStateManager.shared.$selectedEngine
+            .dropFirst() // Skip the initial value
+            .sink { engine in
+                switch engine {
+                case .whisperKit:
+                    // Unload Parakeet to free memory
+                    ModelStateManager.shared.unloadParakeetModel()
+                case .parakeet:
+                    // Unload WhisperKit to free memory
+                    ModelStateManager.shared.unloadWhisperKitModel()
+                }
+            }
+
+        // Note: Parakeet version changes don't auto-load
+        // User must click to download/select a specific version
     }
     
 
@@ -388,6 +422,27 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
                 }
             }
         }
+    }
+
+    func pasteLastTranscription() {
+        // Get the most recent transcription from history
+        guard let lastEntry = TranscriptionHistory.shared.getEntries().first else {
+            let notification = NSUserNotification()
+            notification.title = "No Transcription Available"
+            notification.informativeText = "No transcription history found"
+            NSUserNotificationCenter.default.deliver(notification)
+            print("⚠️ No transcription history to paste")
+            return
+        }
+
+        // Paste the last transcription at cursor
+        pasteTextAtCursor(lastEntry.text)
+
+        let notification = NSUserNotification()
+        notification.title = "Pasted Last Transcription"
+        notification.informativeText = lastEntry.text.prefix(100) + (lastEntry.text.count > 100 ? "..." : "")
+        NSUserNotificationCenter.default.deliver(notification)
+        print("📋 Pasted last transcription: \(lastEntry.text.prefix(50))...")
     }
 
     func stopCurrentPlayback() {

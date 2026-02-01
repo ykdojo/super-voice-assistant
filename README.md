@@ -1,8 +1,12 @@
 # Super Voice Assistant
 
-macOS voice assistant with global hotkeys - transcribe speech to text with offline WhisperKit models or cloud-based Gemini API, capture and transcribe screen recordings with visual context for better accuracy on code/technical terms, and read selected text out loud with live Gemini models. Compared to other options, it's faster and more accurate with simple UI/UX.
+macOS voice assistant with global hotkeys - transcribe speech to text with offline models (WhisperKit or Parakeet) or cloud-based Gemini API, capture and transcribe screen recordings with visual context, and read selected text aloud with Gemini Live. Fast, accurate, and simple.
 
 ## Demo
+
+**Parakeet transcription (fast and accurate):**
+
+https://github.com/user-attachments/assets/163e6484-a3b1-49ef-b5e1-d9887d1f65d0
 
 **Instant text-to-speech:**
 
@@ -15,8 +19,9 @@ https://github.com/user-attachments/assets/0b7f481f-4fec-4811-87ef-13737e0efac4
 ## Features
 
 **Voice-to-Text Transcription**
-- Press Command+Option+Z for local offline transcription with WhisperKit
+- Press Command+Option+Z for local offline transcription (WhisperKit or Parakeet)
 - Press Command+Option+X for cloud transcription with Gemini API
+- Choose your engine in Settings: WhisperKit models or Parakeet (faster, more accurate)
 - Automatic text pasting at cursor position
 - Transcription history with Command+Option+A
 
@@ -50,7 +55,7 @@ The app will automatically request microphone permission on first launch. If den
 
 ### 2. Accessibility Access (Required for Global Hotkeys & Auto-Paste)
 You must manually grant accessibility permissions for the app to:
-- Monitor global keyboard shortcuts (Command+Option+Z/S/X/A, Escape)
+- Monitor global keyboard shortcuts (Command+Option+Z/S/X/A/V/C, Escape)
 - Automatically paste transcribed text at cursor position
 
 **To enable:**
@@ -62,7 +67,7 @@ You must manually grant accessibility permissions for the app to:
    - If running the built binary directly: Add the **SuperVoiceAssistant** executable
 5. Ensure the checkbox next to the app is checked
 
-**Important:** Without accessibility access, the app cannot detect global hotkeys (Command+Option+Z/X/A/S/C, Escape) or paste text automatically.
+**Important:** Without accessibility access, the app cannot detect global hotkeys (Command+Option+Z/X/A/S/C/V, Escape) or paste text automatically.
 
 ### 3. Screen Recording Access (Required for Video Transcription)
 The app requires screen recording permission to capture screen content:
@@ -114,24 +119,24 @@ This is useful for correcting common speech-to-text misrecognitions, especially 
 
 ### Voice-to-Text Transcription
 
-**Local (WhisperKit):**
+**Local (Cmd+Option+Z):**
 1. Launch the app - it appears in the menu bar
-2. Open Settings (click menu bar icon > Settings) to download a WhisperKit model
-3. Press **Command+Option+Z** to start recording (menu bar icon shows recording indicator)
-4. Press **Command+Option+Z** again to stop recording and transcribe
-5. The transcribed text automatically pastes at your cursor position
-6. Press **Escape** during recording to cancel without transcribing
+2. Open Settings to select and download a model (Parakeet or WhisperKit)
+3. Press **Command+Option+Z** to start recording
+4. Press **Command+Option+Z** again to stop and transcribe
+5. Text automatically pastes at cursor
+6. Press **Escape** to cancel
 
-**Cloud (Gemini API):**
-1. Ensure GEMINI_API_KEY is set in your .env file
-2. Press **Command+Option+X** to start recording (menu bar icon shows recording indicator)
-3. Press **Command+Option+X** again to stop recording and transcribe
-4. The transcribed text automatically pastes at your cursor position
-5. Press **Escape** during recording to cancel without transcribing
+**Cloud (Cmd+Option+X):**
+1. Set GEMINI_API_KEY in your .env file
+2. Press **Command+Option+X** to start/stop recording
+3. Text automatically pastes at cursor
 
-**When to use which:**
-- **WhisperKit (Cmd+Option+Z)**: Offline, privacy-focused, no API costs, good for general speech
-- **Gemini (Cmd+Option+X)**: Cloud-based, better accuracy for complex audio, requires internet
+**Transcription engines:**
+- **Parakeet v2**: ~110x realtime, 1.69% WER, English - recommended for speed
+- **Parakeet v3**: ~210x realtime, 1.8% WER, 25 languages
+- **WhisperKit**: Various model sizes, good accuracy, more language options
+- **Gemini**: Cloud-based, best for complex audio, requires internet
 
 ### Text-to-Speech
 1. Select any text in any application
@@ -162,6 +167,7 @@ This is useful for correcting common speech-to-text misrecognitions, especially 
 - **Command+Option+S**: Read selected text aloud / Cancel TTS playback
 - **Command+Option+C**: Start/stop screen recording and transcribe
 - **Command+Option+A**: Show transcription history window
+- **Command+Option+V**: Paste last transcription at cursor
 - **Escape**: Cancel audio recording (when recording is active)
 
 ## Available Commands
@@ -211,34 +217,17 @@ swift run TranscribeVideo <path-to-video-file>
 
 ## Project Structure
 
-- `Sources/` - Main app code with TTS and video transcription
+- `Sources/` - Main app code
+  - `ModelStateManager.swift` - Engine and model selection
+  - `AudioTranscriptionManager.swift` - Audio recording and transcription routing
   - `ScreenRecorder.swift` - Screen recording with ffmpeg
-- `SharedSources/` - Shared components (models, TTS, audio, video)
-  - `GeminiStreamingPlayer.swift` - Streaming TTS playback engine
-  - `GeminiAudioCollector.swift` - Audio collection and WebSocket handling
-  - `SmartSentenceSplitter.swift` - Text processing for optimal speech
-  - `AudioDeviceManager.swift` - Audio device configuration
-  - `GeminiAudioTranscriber.swift` - Gemini API audio transcription
+- `SharedSources/` - Shared components
+  - `ParakeetTranscriber.swift` - FluidAudio Parakeet wrapper
+  - `GeminiStreamingPlayer.swift` - Streaming TTS playback
+  - `GeminiAudioTranscriber.swift` - Gemini API transcription
   - `VideoTranscriber.swift` - Gemini API video transcription
-- `Sources/` - Main app components
-  - `GeminiAudioRecordingManager.swift` - Gemini audio recording manager
-- `tests/` - Test utilities organized by functionality:
-  - `test-download/` - Model download test
-  - `test-streaming-tts/` - TTS functionality test
-  - `test-audio-collector/` - Audio collection test
-  - `test-sentence-splitter/` - Sentence splitting test
-  - `test-transcription/` - Transcription functionality test
-  - `test-live-transcription/` - Live transcription test
-  - `test-audio-analysis/` - Audio analysis test
-- `tools/` - Utilities for models and media:
-  - `list-models/` - List available WhisperKit models
-  - `validate-models/` - Validate downloaded models
-  - `delete-models/` - Delete all downloaded models
-  - `delete-model/` - Delete a specific model
-  - `record-screen/` - Screen recording test tool
-  - `transcribe-video/` - Video transcription test tool
-- `scripts/` - Build and icon generation scripts
-- `logos/` - Logo and branding assets
+- `tests/` - Test utilities
+- `tools/` - Model management utilities
 
 ## License
 

@@ -229,6 +229,10 @@ swift run TranscribeVideo <path-to-video-file>
 - `tests/` - Test utilities
 - `tools/` - Model management utilities
 
+## Featured in
+
+- [claude-code-tips](https://github.com/ykdojo/claude-code-tips)
+
 ## License
 
 See [LICENSE](LICENSE) for details.

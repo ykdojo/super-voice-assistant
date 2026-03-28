@@ -1,5 +1,8 @@
 import Foundation
 import AVFoundation
+import os.log
+
+private let streamingPlayerLog = Logger(subsystem: "com.supervoiceassistant", category: "StreamingPlayer")
 
 @available(macOS 14.0, *)
 public class GeminiStreamingPlayer {
@@ -111,6 +114,7 @@ public class GeminiStreamingPlayer {
             reset()
 
         } catch {
+            streamingPlayerLog.error("Playback stream error: \(error.localizedDescription, privacy: .public)")
             reset()  // Clean up on error too
             throw GeminiStreamingPlayerError.playbackError(error)
         }
@@ -143,6 +147,7 @@ public class GeminiStreamingPlayer {
 
                 if isNetworkError && attempt < maxRetries {
                     print("⚠️ TTS attempt \(attempt) failed, retrying in 1s... Error: \(error.localizedDescription)")
+                    streamingPlayerLog.warning("TTS attempt \(attempt) failed, retrying: \(error.localizedDescription, privacy: .public)")
                     try await Task.sleep(nanoseconds: 1_000_000_000) // 1 second delay
                     reset() // Reset player state before retry
                 } else {

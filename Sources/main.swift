@@ -7,27 +7,51 @@ import SharedModels
 import Combine
 import ApplicationServices
 import Foundation
+import os.log
+
+private let appLog = Logger(subsystem: "com.supervoiceassistant", category: "App")
 
 // Environment variable loading
 func loadEnvironmentVariables() {
     let fileManager = FileManager.default
-    let currentDirectory = fileManager.currentDirectoryPath
-    let envPath = "\(currentDirectory)/.env"
-    
-    guard fileManager.fileExists(atPath: envPath),
+
+    // Build list of candidate .env paths (first match wins)
+    var candidates: [String] = []
+
+    // 1. Current working directory (existing behavior, works for `swift run`)
+    let cwd = fileManager.currentDirectoryPath
+    candidates.append("\(cwd)/.env")
+
+    // 2. Next to the .app bundle (e.g. ~/Applications/SuperVoiceAssistant.app/../.env)
+    if let bundlePath = Bundle.main.bundlePath as String? {
+        let bundleDir = (bundlePath as NSString).deletingLastPathComponent
+        candidates.append("\(bundleDir)/.env")
+    }
+
+    // 3. XDG-style config directory
+    let home = fileManager.homeDirectoryForCurrentUser.path
+    candidates.append("\(home)/.config/supervoiceassistant/.env")
+
+    // Try each candidate until we find one that exists
+    guard let envPath = candidates.first(where: { fileManager.fileExists(atPath: $0) }),
           let envContent = try? String(contentsOfFile: envPath) else {
+        print("⚠️ No .env file found. Searched: \(candidates.joined(separator: ", "))")
+        appLog.warning("No .env file found. Searched: \(candidates.joined(separator: ", "), privacy: .public)")
         return
     }
-    
+
+    print("✅ Loaded .env from: \(envPath)")
+
     for line in envContent.components(separatedBy: .newlines) {
         let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedLine.isEmpty && !trimmedLine.hasPrefix("#") else { continue }
-        
+
         let parts = trimmedLine.components(separatedBy: "=")
-        guard parts.count == 2 else { continue }
-        
+        guard parts.count >= 2 else { continue }
+
         let key = parts[0].trimmingCharacters(in: .whitespacesAndNewlines)
-        let value = parts[1].trimmingCharacters(in: .whitespacesAndNewlines)
+        // Rejoin on "=" in case the value itself contains "="
+        let value = parts.dropFirst().joined(separator: "=").trimmingCharacters(in: .whitespacesAndNewlines)
         setenv(key, value, 1)
     }
 }
@@ -63,6 +87,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
     private var videoTranscriber = VideoTranscriber()
     
     func applicationDidFinishLaunching(_ notification: Notification) {
+        appLog.info("SuperVoiceAssistant launching")
         // Load environment variables
         loadEnvironmentVariables()
         
@@ -77,6 +102,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
             }
         } else {
             print("⚠️ GEMINI_API_KEY not found in environment variables")
+            appLog.warning("GEMINI_API_KEY not found in environment variables")
         }
         
         // Create the status bar item
@@ -360,12 +386,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
                                 NSUserNotificationCenter.default.deliver(errorNotification)
 
                                 print("❌ Transcription failed: \(error.localizedDescription)")
+                                appLog.error("Video transcription failed: \(error.localizedDescription, privacy: .public)")
                             }
                         }
                     }
 
                 case .failure(let error):
                     print("❌ Screen recording failed: \(error.localizedDescription)")
+                    appLog.error("Screen recording failed: \(error.localizedDescription, privacy: .public)")
 
                     let errorNotification = NSUserNotification()
                     errorNotification.title = "Recording Failed"
@@ -411,6 +439,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
 
                 case .failure(let error):
                     print("❌ Failed to start recording: \(error.localizedDescription)")
+                    appLog.error("Failed to start screen recording: \(error.localizedDescription, privacy: .public)")
 
                     let errorNotification = NSUserNotification()
                     errorNotification.title = "Recording Failed"
@@ -522,8 +551,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
                             
                         } catch is CancellationError {
                             print("🛑 Audio streaming was cancelled")
+                            appLog.info("TTS playback cancelled by user")
                         } catch {
                             print("❌ Streaming TTS Error: \(error)")
+                            appLog.error("Streaming TTS failed: \(error.localizedDescription, privacy: .public) | Full: \(String(describing: error), privacy: .public)")
                             
                             let errorNotification = NSUserNotification()
                             errorNotification.title = "Streaming TTS Error"
@@ -707,6 +738,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
     }
     
     func showTranscriptionError(_ message: String) {
+        appLog.error("Transcription error: \(message, privacy: .public)")
         let notification = NSUserNotification()
         notification.title = "Transcription Error"
         notification.informativeText = message

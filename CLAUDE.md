@@ -57,3 +57,24 @@
 - **Cmd+Opt+A**: Show transcription history
 - **Cmd+Opt+V**: Paste last transcription at cursor
 
+## Logging
+
+Uses `os.log` (`Logger`) with subsystem `com.supervoiceassistant` so errors are always visible in Console.app regardless of how the app is launched.
+
+**Categories**:
+- `App` (`main.swift`) - startup, env loading, TTS errors, recording failures, transcription errors
+- `AudioCollector` (`GeminiAudioCollector.swift`) - Gemini API errors (code/status/message), JSON parse errors, WebSocket connection failures
+- `StreamingPlayer` (`GeminiStreamingPlayer.swift`) - playback errors, retry attempts
+
+**Querying logs**:
+```bash
+# All app logs from last hour
+log show --predicate 'subsystem == "com.supervoiceassistant"' --last 1h --style compact
+
+# Errors only
+log show --predicate 'subsystem == "com.supervoiceassistant" AND messageType == 16' --last 1h
+
+# Specific category
+log show --predicate 'subsystem == "com.supervoiceassistant" AND category == "AudioCollector"' --last 1h
+```
+

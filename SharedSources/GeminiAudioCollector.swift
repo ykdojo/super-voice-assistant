@@ -1,4 +1,7 @@
 import Foundation
+import os.log
+
+private let audioCollectorLog = Logger(subsystem: "com.supervoiceassistant", category: "AudioCollector")
 
 @available(macOS 14.0, *)
 public class GeminiAudioCollector {
@@ -117,6 +120,7 @@ public class GeminiAudioCollector {
                             let message = error["message"] as? String ?? "Unknown error"
                             let status = error["status"] as? String ?? ""
                             print("🚨 API Error - Code: \(code), Status: \(status), Message: \(message)")
+                            audioCollectorLog.error("API Error - Code: \(code), Status: \(status, privacy: .public), Message: \(message, privacy: .public)")
                         }
                     }
 
@@ -133,6 +137,7 @@ public class GeminiAudioCollector {
                                 let message = error["message"] as? String ?? "Unknown error"
                                 let status = error["status"] as? String ?? ""
                                 print("🚨 API Error - Code: \(code), Status: \(status), Message: \(message)")
+                                audioCollectorLog.error("API Error (data) - Code: \(code), Status: \(status, privacy: .public), Message: \(message, privacy: .public)")
                             }
 
                             // Check for completion in JSON response
@@ -162,6 +167,7 @@ public class GeminiAudioCollector {
                         }
                     } catch {
                         print("⚠️ JSON parsing error: \(error)")
+                        audioCollectorLog.warning("JSON parsing error: \(error.localizedDescription, privacy: .public)")
                     }
                 @unknown default:
                     break
@@ -175,6 +181,7 @@ public class GeminiAudioCollector {
             
         } catch {
             // Close connection on error to prevent resource leaks
+            audioCollectorLog.error("Audio collection failed: \(error.localizedDescription, privacy: .public)")
             closeConnection()
             throw GeminiAudioCollectorError.collectionError(error)
         }

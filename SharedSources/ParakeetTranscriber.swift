@@ -180,8 +180,12 @@ public class ParakeetTranscriber {
     }
 
     /// Check if a model is loaded and ready
+    ///
+    /// `loadingState` is only set to `.loaded` after `AsrManager.initialize` succeeds,
+    /// so it tracks readiness without touching the now actor-isolated `isAvailable`
+    /// (which can't be read synchronously here).
     public var isReady: Bool {
-        return asrManager?.isAvailable ?? false && loadingState == .loaded
+        return asrManager != nil && loadingState == .loaded
     }
 
     /// Unload the current model to free memory

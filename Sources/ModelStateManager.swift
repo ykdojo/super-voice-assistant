@@ -268,6 +268,7 @@ class ModelStateManager: ObservableObject {
             }
             
             do {
+                MemoryMonitor.shared.checkpoint("before WhisperKit load: \(modelName)")
                 print("Loading WhisperKit with model: \(modelName)")
                 let whisperKit = try await WhisperKit(
                     modelFolder: modelPath.path,
@@ -296,6 +297,7 @@ class ModelStateManager: ObservableObject {
                     }
                 }
                 
+                MemoryMonitor.shared.checkpoint("after WhisperKit load: \(modelName)")
                 print("WhisperKit loaded successfully")
                 return whisperKit
             } catch {
@@ -349,6 +351,7 @@ class ModelStateManager: ObservableObject {
             }
 
             do {
+                MemoryMonitor.shared.checkpoint("before Parakeet load: \(parakeetVersion.displayName)")
                 let transcriber = ParakeetTranscriber()
                 try await transcriber.loadModel(version: parakeetVersion)
 
@@ -367,6 +370,7 @@ class ModelStateManager: ObservableObject {
                     self.parakeetLoadingState = .loaded
                 }
 
+                MemoryMonitor.shared.checkpoint("after Parakeet load: \(parakeetVersion.displayName)")
                 print("Parakeet model loaded successfully: \(parakeetVersion.displayName)")
 
             } catch {

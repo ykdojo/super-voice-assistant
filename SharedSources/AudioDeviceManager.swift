@@ -193,13 +193,15 @@ public class AudioDeviceManager: ObservableObject {
         )
         
         guard status == noErr, dataSize > 0 else { return false }
-        
-        let bufferCount = Int(dataSize) / MemoryLayout<AudioBuffer>.size
-        let bufferList = UnsafeMutablePointer<AudioBufferList>.allocate(capacity: 1)
-        defer { bufferList.deallocate() }
-        
-        bufferList.pointee.mNumberBuffers = UInt32(bufferCount)
-        
+
+        // AudioBufferList is variable-length; allocate the full dataSize CoreAudio will write
+        let rawPtr = UnsafeMutableRawPointer.allocate(
+            byteCount: Int(dataSize),
+            alignment: MemoryLayout<AudioBufferList>.alignment
+        )
+        defer { rawPtr.deallocate() }
+        let bufferList = rawPtr.assumingMemoryBound(to: AudioBufferList.self)
+
         let getStatus = AudioObjectGetPropertyData(
             deviceID,
             &propertyAddress,
@@ -208,21 +210,12 @@ public class AudioDeviceManager: ObservableObject {
             &dataSize,
             bufferList
         )
-        
+
         guard getStatus == noErr else { return false }
-        
-        for i in 0..<Int(bufferList.pointee.mNumberBuffers) {
-            let buffer = withUnsafePointer(to: &bufferList.pointee.mBuffers) { ptr in
-                UnsafeRawPointer(ptr).assumingMemoryBound(to: AudioBuffer.self)[i]
-            }
-            if buffer.mNumberChannels > 0 {
-                return true
-            }
-        }
-        
-        return false
+
+        return UnsafeMutableAudioBufferListPointer(bufferList).contains { $0.mNumberChannels > 0 }
     }
-    
+
     private func hasOutputChannels(deviceID: AudioDeviceID) -> Bool {
         var propertyAddress = AudioObjectPropertyAddress(
             mSelector: kAudioDevicePropertyStreamConfiguration,
@@ -240,13 +233,15 @@ public class AudioDeviceManager: ObservableObject {
         )
         
         guard status == noErr, dataSize > 0 else { return false }
-        
-        let bufferCount = Int(dataSize) / MemoryLayout<AudioBuffer>.size
-        let bufferList = UnsafeMutablePointer<AudioBufferList>.allocate(capacity: 1)
-        defer { bufferList.deallocate() }
-        
-        bufferList.pointee.mNumberBuffers = UInt32(bufferCount)
-        
+
+        // AudioBufferList is variable-length; allocate the full dataSize CoreAudio will write
+        let rawPtr = UnsafeMutableRawPointer.allocate(
+            byteCount: Int(dataSize),
+            alignment: MemoryLayout<AudioBufferList>.alignment
+        )
+        defer { rawPtr.deallocate() }
+        let bufferList = rawPtr.assumingMemoryBound(to: AudioBufferList.self)
+
         let getStatus = AudioObjectGetPropertyData(
             deviceID,
             &propertyAddress,
@@ -255,19 +250,10 @@ public class AudioDeviceManager: ObservableObject {
             &dataSize,
             bufferList
         )
-        
+
         guard getStatus == noErr else { return false }
-        
-        for i in 0..<Int(bufferList.pointee.mNumberBuffers) {
-            let buffer = withUnsafePointer(to: &bufferList.pointee.mBuffers) { ptr in
-                UnsafeRawPointer(ptr).assumingMemoryBound(to: AudioBuffer.self)[i]
-            }
-            if buffer.mNumberChannels > 0 {
-                return true
-            }
-        }
-        
-        return false
+
+        return UnsafeMutableAudioBufferListPointer(bufferList).contains { $0.mNumberChannels > 0 }
     }
     
     public func getCurrentInputDevice() -> AudioDevice? {

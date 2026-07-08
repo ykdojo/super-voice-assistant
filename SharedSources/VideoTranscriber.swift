@@ -71,6 +71,7 @@ public class VideoTranscriber {
         }
 
         // Read video file
+        MemoryMonitor.shared.checkpoint("before video file read")
         guard let videoData = try? Data(contentsOf: videoURL) else {
             completion(.failure(TranscriptionError.readFailed))
             return
@@ -80,7 +81,9 @@ public class VideoTranscriber {
         let mimeType = getMimeType(for: videoURL.pathExtension)
 
         // Encode video as base64
+        MemoryMonitor.shared.checkpoint("before video base64 encode (\(videoData.count / (1024*1024)) MB)")
         let base64Video = videoData.base64EncodedString()
+        MemoryMonitor.shared.checkpoint("after video base64 encode")
 
         // Construct request body
         let requestBody: [String: Any] = [

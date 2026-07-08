@@ -117,6 +117,7 @@ public class GeminiStreamingPlayer {
     }
     
     public func playText(_ text: String, audioCollector: GeminiAudioCollector, maxRetries: Int = 3) async throws {
+        MemoryMonitor.shared.checkpoint("before TTS playText")
         try startAudioEngine()
 
         // Split text into sentences and rejoin with line breaks for natural pauses
@@ -192,6 +193,7 @@ public class GeminiStreamingPlayer {
 
         print("✅ Playback complete: \(totalBytesPlayed) bytes")
         print("🎉 Full text streaming completed")
+        MemoryMonitor.shared.checkpoint("after TTS playText")
 
         // Clean up after playback
         reset()

@@ -57,3 +57,11 @@
 - **Cmd+Opt+A**: Show transcription history
 - **Cmd+Opt+V**: Paste last transcription at cursor
 
+## Memory monitoring
+
+- Always on in main
+- Key file: `SharedSources/MemoryMonitor.swift`
+- Logs to `~/Library/Logs/SuperVoiceAssistant/memory.log`
+- Logs threshold crossings at 5GB, 10GB, 20GB, 50GB, 100GB
+- After a crash, check the log: `cat ~/Library/Logs/SuperVoiceAssistant/memory.log`
+

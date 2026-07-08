@@ -75,6 +75,7 @@ public class GeminiAudioTranscriber {
         }
 
         // Convert audio buffer to WAV data
+        MemoryMonitor.shared.checkpoint("before Gemini audio WAV+base64 encode")
         guard let wavData = convertToWAV(audioBuffer: paddedBuffer, sampleRate: 16000) else {
             completion(.failure(TranscriptionError.audioConversionFailed))
             return
@@ -82,6 +83,8 @@ public class GeminiAudioTranscriber {
 
         // Encode audio as base64
         let base64Audio = wavData.base64EncodedString()
+
+        MemoryMonitor.shared.checkpoint("after Gemini audio WAV+base64 encode")
 
         // Construct request body
         let requestBody: [String: Any] = [

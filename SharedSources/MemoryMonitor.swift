@@ -1,17 +1,18 @@
 import Foundation
 
-/// Monitors memory usage and logs warnings when thresholds are exceeded
-class MemoryMonitor {
-    static let shared = MemoryMonitor()
+/// Monitors memory usage and logs warnings when thresholds are exceeded.
+/// Uses a background GCD timer so it fires even when the main thread is blocked.
+public class MemoryMonitor {
+    public static let shared = MemoryMonitor()
 
-    private var timer: Timer?
+    private var timer: DispatchSourceTimer?
+    private let queue = DispatchQueue(label: "memory-monitor", qos: .utility)
     private var lastLoggedThreshold: UInt64 = 0
-    private let thresholdsMB: [UInt64] = [5000, 10000, 20000, 50000, 100000]
+    private let thresholdsMB: [UInt64] = [500, 1000, 2000, 5000, 10000]
     private var logFileHandle: FileHandle?
     private let logFilePath: String
 
     private init() {
-        // Store log in ~/Library/Logs/SuperVoiceAssistant/
         let logsDir = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent("Library/Logs/SuperVoiceAssistant")
         try? FileManager.default.createDirectory(at: logsDir, withIntermediateDirectories: true)
@@ -19,7 +20,7 @@ class MemoryMonitor {
     }
 
     /// Start monitoring memory usage
-    func start(intervalSeconds: Double = 1.0) {
+    public func start(intervalSeconds: Double = 2.0) {
         stop()
 
         // Open log file for appending
@@ -32,33 +33,53 @@ class MemoryMonitor {
         let message = "🔍 Memory monitor started (checking every \(intervalSeconds)s) - Log: \(logFilePath)"
         print(message)
         writeToLog(message)
-        logCurrentMemory()
 
-        timer = Timer.scheduledTimer(withTimeInterval: intervalSeconds, repeats: true) { [weak self] _ in
+        let mb = currentMemoryMB()
+        let startMsg = "📊 Current memory: \(mb) MB"
+        print(startMsg)
+        writeToLog(startMsg)
+
+        // Use DispatchSourceTimer on a background queue so it fires
+        // even when the main thread is blocked by a tight allocation loop.
+        let source = DispatchSource.makeTimerSource(queue: queue)
+        source.schedule(deadline: .now() + intervalSeconds, repeating: intervalSeconds)
+        source.setEventHandler { [weak self] in
             self?.checkMemory()
         }
+        source.resume()
+        timer = source
     }
 
     /// Stop monitoring
-    func stop() {
-        timer?.invalidate()
+    public func stop() {
+        timer?.cancel()
         timer = nil
         logFileHandle?.closeFile()
         logFileHandle = nil
     }
 
-    /// Write message to both console and log file
+    // MARK: - Checkpoints
+
+    /// Log memory at an operation boundary so we can see what caused a spike.
+    public func checkpoint(_ label: String) {
+        let mb = currentMemoryMB()
+        let message = "📍 [\(label)] memory: \(mb) MB"
+        print(message)
+        writeToLog(message)
+    }
+
+    // MARK: - Internals
+
     private func writeToLog(_ message: String) {
         let timestamp = ISO8601DateFormatter().string(from: Date())
         let logLine = "[\(timestamp)] \(message)\n"
         if let data = logLine.data(using: .utf8) {
             logFileHandle?.write(data)
-            logFileHandle?.synchronizeFile()  // Ensure it's written immediately
+            logFileHandle?.synchronizeFile()
         }
     }
 
-    /// Get current memory usage in bytes
-    func currentMemoryUsage() -> UInt64 {
+    public func currentMemoryMB() -> UInt64 {
         var info = mach_task_basic_info()
         var count = mach_msg_type_number_t(MemoryLayout<mach_task_basic_info>.size) / 4
 
@@ -68,25 +89,12 @@ class MemoryMonitor {
             }
         }
 
-        guard result == KERN_SUCCESS else {
-            return 0
-        }
-
-        return info.resident_size
-    }
-
-    /// Log current memory usage
-    func logCurrentMemory() {
-        let bytes = currentMemoryUsage()
-        let mb = bytes / (1024 * 1024)
-        let message = "📊 Current memory: \(mb) MB"
-        print(message)
-        writeToLog(message)
+        guard result == KERN_SUCCESS else { return 0 }
+        return info.resident_size / (1024 * 1024)
     }
 
     private func checkMemory() {
-        let bytes = currentMemoryUsage()
-        let mb = bytes / (1024 * 1024)
+        let mb = currentMemoryMB()
 
         // Find the highest threshold we've crossed
         var crossedThreshold: UInt64 = 0
@@ -101,7 +109,6 @@ class MemoryMonitor {
             let message = "⚠️ MEMORY WARNING: \(mb) MB (crossed \(crossedThreshold) MB threshold)"
             print(message)
             writeToLog(message)
-            logMemoryContext()
             lastLoggedThreshold = crossedThreshold
         }
 
@@ -109,24 +116,5 @@ class MemoryMonitor {
         if mb < lastLoggedThreshold / 2 {
             lastLoggedThreshold = 0
         }
-    }
-
-    /// Log context about what might be using memory
-    private func logMemoryContext() {
-        let timestamp = ISO8601DateFormatter().string(from: Date())
-        var context = """
-           Timestamp: \(timestamp)
-           Thread: \(Thread.current)
-           Stack trace:
-        """
-
-        // Log call stack for debugging
-        let symbols = Thread.callStackSymbols.prefix(10)
-        for symbol in symbols {
-            context += "\n     \(symbol)"
-        }
-
-        print(context)
-        writeToLog(context)
     }
 }

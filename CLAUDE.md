@@ -59,8 +59,8 @@
 
 ## Memory monitoring
 
-- Branch: `memory-monitoring` - has memory monitoring enabled on top of main
-- Key file: `Sources/MemoryMonitor.swift`
+- Always on in main
+- Key file: `SharedSources/MemoryMonitor.swift`
 - Logs to `~/Library/Logs/SuperVoiceAssistant/memory.log`
 - Logs threshold crossings at 5GB, 10GB, 20GB, 50GB, 100GB
 - After a crash, check the log: `cat ~/Library/Logs/SuperVoiceAssistant/memory.log`

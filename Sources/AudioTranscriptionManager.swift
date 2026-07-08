@@ -311,6 +311,7 @@ class AudioTranscriptionManager {
         }
 
         print("Transcribing \(audioBuffer.count) samples (\(Double(audioBuffer.count) / sampleRate) seconds) with WhisperKit...")
+        MemoryMonitor.shared.checkpoint("before WhisperKit transcribe")
 
         do {
             let transcriptionResult = try await whisperKit.transcribe(
@@ -333,6 +334,7 @@ class AudioTranscriptionManager {
                 )
             )
 
+            MemoryMonitor.shared.checkpoint("after WhisperKit transcribe")
             isTranscribing = false
 
             if let firstResult = transcriptionResult.first {
@@ -375,9 +377,11 @@ class AudioTranscriptionManager {
         }
 
         print("Transcribing \(audioBuffer.count) samples (\(Double(audioBuffer.count) / sampleRate) seconds) with Parakeet...")
+        MemoryMonitor.shared.checkpoint("before Parakeet transcribe")
 
         do {
             let transcription = try await transcriber.transcribe(audioSamples: paddedBuffer)
+            MemoryMonitor.shared.checkpoint("after Parakeet transcribe")
             isTranscribing = false
             handleTranscriptionResult(transcription)
         } catch {

@@ -54,8 +54,11 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/sindresorhus/KeyboardShortcuts", exact: "1.8.0"),
-        .package(url: "https://github.com/argmaxinc/WhisperKit", from: "0.13.0"),
-        .package(url: "https://github.com/FluidInference/FluidAudio.git", from: "0.7.9")
+        .package(url: "https://github.com/argmaxinc/WhisperKit", from: "1.0.0"),
+        // Pinned to 0.12.x: 0.12.6 converts AsrManager to an actor (fixes Swift 6.3
+        // `sending` data-race errors), while 0.13.0+ changes the transcribe() API to
+        // require an inout TdtDecoderState, which would break ParakeetTranscriber.
+        .package(url: "https://github.com/FluidInference/FluidAudio.git", .upToNextMinor(from: "0.12.6"))
     ],
     targets: [
         .target(

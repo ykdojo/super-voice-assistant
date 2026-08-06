@@ -46,19 +46,6 @@ struct SettingsView: View {
                     }
                     .padding(.horizontal, 4)
 
-                    // Keep model warm so macOS doesn't page it out between transcriptions
-                    Toggle(isOn: $modelState.parakeetKeepWarmEnabled) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Keep model warm")
-                                .font(.subheadline)
-                            Text("Faster transcription; holds ~1.5 GB of memory while idle")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                    .toggleStyle(.switch)
-                    .padding(.horizontal, 4)
-
                     // Parakeet models
                     ForEach(ParakeetVersion.allCases, id: \.self) { version in
                         ParakeetModelCard(

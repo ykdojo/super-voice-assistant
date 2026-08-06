@@ -58,18 +58,8 @@ class ModelStateManager: ObservableObject {
     private var currentParakeetLoadingTask: Task<Void, Never>? = nil
     private var parakeetKeepWarmTask: Task<Void, Never>? = nil
     var isParakeetTranscribing = false
-    @Published var parakeetKeepWarmEnabled: Bool = true {
-        didSet {
-            UserDefaults.standard.set(parakeetKeepWarmEnabled, forKey: "parakeetKeepWarmEnabled")
-            if parakeetKeepWarmEnabled {
-                if parakeetLoadingState == .loaded {
-                    startParakeetKeepWarm()
-                }
-            } else {
-                stopParakeetKeepWarm()
-            }
-        }
-    }
+    /// Development flag: launch with `--no-keep-warm` to disable the keep-warm loop
+    let parakeetKeepWarmEnabled = !CommandLine.arguments.contains("--no-keep-warm")
 
     // MARK: - WhisperKit State
     @Published var downloadedModels: Set<String> = []
@@ -103,11 +93,6 @@ class ModelStateManager: ObservableObject {
 
         // Restore the selected WhisperKit model from UserDefaults
         self.selectedModel = UserDefaults.standard.string(forKey: "selectedWhisperModel")
-
-        // Restore the keep-warm preference from UserDefaults (default: enabled)
-        if UserDefaults.standard.object(forKey: "parakeetKeepWarmEnabled") != nil {
-            self.parakeetKeepWarmEnabled = UserDefaults.standard.bool(forKey: "parakeetKeepWarmEnabled")
-        }
     }
     
     func checkDownloadedModels() async {

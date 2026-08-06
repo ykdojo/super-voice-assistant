@@ -56,6 +56,20 @@ class ModelStateManager: ObservableObject {
     }
     @Published var parakeetLoadingState: ParakeetLoadingState = .notDownloaded
     private var currentParakeetLoadingTask: Task<Void, Never>? = nil
+    private var parakeetKeepWarmTask: Task<Void, Never>? = nil
+    var isParakeetTranscribing = false
+    @Published var parakeetKeepWarmEnabled: Bool = true {
+        didSet {
+            UserDefaults.standard.set(parakeetKeepWarmEnabled, forKey: "parakeetKeepWarmEnabled")
+            if parakeetKeepWarmEnabled {
+                if parakeetLoadingState == .loaded {
+                    startParakeetKeepWarm()
+                }
+            } else {
+                stopParakeetKeepWarm()
+            }
+        }
+    }
 
     // MARK: - WhisperKit State
     @Published var downloadedModels: Set<String> = []
@@ -89,6 +103,11 @@ class ModelStateManager: ObservableObject {
 
         // Restore the selected WhisperKit model from UserDefaults
         self.selectedModel = UserDefaults.standard.string(forKey: "selectedWhisperModel")
+
+        // Restore the keep-warm preference from UserDefaults (default: enabled)
+        if UserDefaults.standard.object(forKey: "parakeetKeepWarmEnabled") != nil {
+            self.parakeetKeepWarmEnabled = UserDefaults.standard.bool(forKey: "parakeetKeepWarmEnabled")
+        }
     }
     
     func checkDownloadedModels() async {
@@ -368,6 +387,7 @@ class ModelStateManager: ObservableObject {
                 await MainActor.run {
                     self.loadedParakeetTranscriber = transcriber
                     self.parakeetLoadingState = .loaded
+                    self.startParakeetKeepWarm()
                 }
 
                 MemoryMonitor.shared.checkpoint("after Parakeet load: \(parakeetVersion.displayName)")
@@ -391,8 +411,38 @@ class ModelStateManager: ObservableObject {
         await task.value
     }
 
+    // MARK: - Parakeet Keep-Warm
+
+    /// Periodically run a tiny silent transcription so the model weights stay
+    /// "recently used" and macOS doesn't page them out to swap between real
+    /// transcriptions (page-in of ~1.4GB was adding seconds of latency on 8GB machines).
+    private func startParakeetKeepWarm() {
+        guard parakeetKeepWarmEnabled else { return }
+        parakeetKeepWarmTask?.cancel()
+        parakeetKeepWarmTask = Task { [weak self] in
+            let silence = [Float](repeating: 0.0, count: 32000)  // 2s at 16kHz
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 60_000_000_000)
+                guard let self, !Task.isCancelled else { return }
+                guard self.parakeetKeepWarmEnabled,
+                      self.selectedEngine == .parakeet,
+                      !self.isParakeetTranscribing,
+                      let transcriber = self.loadedParakeetTranscriber,
+                      transcriber.isReady else { continue }
+                _ = try? await transcriber.transcribe(audioSamples: silence)
+                MemoryMonitor.shared.checkpoint("parakeet keep-warm ping")
+            }
+        }
+    }
+
+    private func stopParakeetKeepWarm() {
+        parakeetKeepWarmTask?.cancel()
+        parakeetKeepWarmTask = nil
+    }
+
     /// Unload Parakeet model to free memory
     func unloadParakeetModel() {
+        stopParakeetKeepWarm()
         loadedParakeetTranscriber?.unloadModel()
         loadedParakeetTranscriber = nil
 

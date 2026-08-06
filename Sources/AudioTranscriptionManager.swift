@@ -379,6 +379,9 @@ class AudioTranscriptionManager {
         print("Transcribing \(audioBuffer.count) samples (\(Double(audioBuffer.count) / sampleRate) seconds) with Parakeet...")
         MemoryMonitor.shared.checkpoint("before Parakeet transcribe")
 
+        ModelStateManager.shared.isParakeetTranscribing = true
+        defer { ModelStateManager.shared.isParakeetTranscribing = false }
+
         do {
             let transcription = try await transcriber.transcribe(audioSamples: paddedBuffer)
             MemoryMonitor.shared.checkpoint("after Parakeet transcribe")

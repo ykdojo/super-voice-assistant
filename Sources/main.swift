@@ -70,7 +70,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
         loadEnvironmentVariables()
         
         // Initialize streaming TTS components if API key is available
-        if let apiKey = ProcessInfo.processInfo.environment["GEMINI_API_KEY"], !apiKey.isEmpty {
+        // (env var, macOS keychain, or .env file - see GeminiAPIKey)
+        if let apiKey = GeminiAPIKey.resolve() {
             if #available(macOS 14.0, *) {
                 streamingPlayer = GeminiStreamingPlayer(playbackSpeed: 1.15)
                 audioCollector = GeminiAudioCollector(apiKey: apiKey)
@@ -79,7 +80,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
                 print("⚠️ Streaming TTS requires macOS 14.0 or later")
             }
         } else {
-            print("⚠️ GEMINI_API_KEY not found in environment variables")
+            print("⚠️ GEMINI_API_KEY not found in environment, keychain, or .env file")
         }
         
         // Create the status bar item

@@ -84,7 +84,10 @@ cd super-voice-assistant
 # Install ffmpeg (required for screen recording)
 brew install ffmpeg
 
-# Set up environment (for TTS and video transcription)
+# Set up your Gemini API key (for TTS and video transcription)
+# Option 1: macOS keychain (recommended)
+security add-generic-password -U -s gemini-api-key -a "$USER" -w YOUR_KEY
+# Option 2: .env file
 cp .env.example .env
 # Edit .env and add your GEMINI_API_KEY
 
@@ -128,7 +131,7 @@ This is useful for correcting common speech-to-text misrecognitions, especially 
 6. Press **Escape** to cancel
 
 **Cloud (Cmd+Option+X):**
-1. Set GEMINI_API_KEY in your .env file
+1. Set your Gemini API key (keychain or .env file, see Installation)
 2. Press **Command+Option+X** to start/stop recording
 3. Text automatically pastes at cursor
 

@@ -16,7 +16,7 @@ public class GeminiAudioTranscriber {
         public var errorDescription: String? {
             switch self {
             case .apiKeyNotFound:
-                return "GEMINI_API_KEY not found in environment or .env file"
+                return "GEMINI_API_KEY not found in environment, keychain, or .env file"
             case .audioConversionFailed:
                 return "Failed to convert audio to WAV format"
             case .requestFailed(let statusCode, let message):
@@ -162,26 +162,7 @@ public class GeminiAudioTranscriber {
     // MARK: - Private Helpers
 
     private func loadApiKey() -> String? {
-        // Check environment variable first
-        if let envKey = ProcessInfo.processInfo.environment["GEMINI_API_KEY"] {
-            return envKey
-        }
-
-        // Try to read from .env file
-        let envPath = ".env"
-        guard let envContent = try? String(contentsOfFile: envPath, encoding: .utf8) else {
-            return nil
-        }
-
-        for line in envContent.components(separatedBy: .newlines) {
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
-            if trimmed.hasPrefix("GEMINI_API_KEY=") {
-                let key = String(trimmed.dropFirst("GEMINI_API_KEY=".count))
-                return key.isEmpty ? nil : key
-            }
-        }
-
-        return nil
+        return GeminiAPIKey.resolve()
     }
 
     /// Convert Float audio buffer to WAV format Data

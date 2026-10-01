@@ -76,7 +76,7 @@ public class GeminiAudioTranscriber {
 
         // Convert audio buffer to WAV data
         MemoryMonitor.shared.checkpoint("before Gemini audio WAV+base64 encode")
-        guard let wavData = convertToWAV(audioBuffer: paddedBuffer, sampleRate: 16000) else {
+        guard let wavData = Self.convertToWAV(audioBuffer: paddedBuffer, sampleRate: 16000) else {
             completion(.failure(TranscriptionError.audioConversionFailed))
             return
         }
@@ -166,10 +166,10 @@ public class GeminiAudioTranscriber {
     }
 
     /// Convert Float audio buffer to WAV format Data
-    private func convertToWAV(audioBuffer: [Float], sampleRate: Int) -> Data? {
+    static func convertToWAV(audioBuffer: [Float], sampleRate: Int) -> Data? {
         // Convert Float samples to Int16 PCM
         let int16Samples: [Int16] = audioBuffer.map { sample in
-            let clampedSample = max(-1.0, min(1.0, sample))
+            let clampedSample = sample.isFinite ? max(-1.0, min(1.0, sample)) : 0
             return Int16(clampedSample * Float(Int16.max))
         }
 

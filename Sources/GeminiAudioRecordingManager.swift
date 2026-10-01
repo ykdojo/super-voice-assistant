@@ -30,6 +30,7 @@ class GeminiAudioRecordingManager {
 
     // Gemini transcriber
     private let geminiTranscriber = GeminiAudioTranscriber()
+    private let sixtydbTranscriber = SixtyDBAudioTranscriber()
 
     init() {
         setupAudioEngine()
@@ -266,10 +267,14 @@ class GeminiAudioRecordingManager {
         // Start transcription
         delegate?.transcriptionDidStart()
 
-        print("Sending audio to Gemini API for transcription (\(Double(audioBuffer.count) / sampleRate) seconds)...")
+        let provider = ProcessInfo.processInfo.environment["CLOUD_TRANSCRIPTION_PROVIDER"]?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? "gemini"
+        guard provider == "gemini" || provider == "60db" else {
+            delegate?.transcriptionDidFail(error: "Choose gemini or 60db for CLOUD_TRANSCRIPTION_PROVIDER")
+            return
+        }
+        print("Sending audio to \(provider) for transcription (\(Double(audioBuffer.count) / sampleRate) seconds)...")
 
-        // Send to Gemini API
-        geminiTranscriber.transcribe(audioBuffer: audioBuffer) { [weak self] result in
+        let completion: (Result<String, Error>) -> Void = { [weak self] result in
             DispatchQueue.main.async {
                 switch result {
                 case .success(let transcription):
@@ -278,7 +283,7 @@ class GeminiAudioRecordingManager {
                         // Apply text replacements from config
                         trimmed = TextReplacements.shared.processText(trimmed)
 
-                        print("✅ Gemini transcription: \"\(trimmed)\"")
+                        print("✅ Cloud transcription: \"\(trimmed)\"")
 
                         // Save to history
                         TranscriptionHistory.shared.addEntry(trimmed)
@@ -291,10 +296,15 @@ class GeminiAudioRecordingManager {
                     }
 
                 case .failure(let error):
-                    print("Gemini transcription error: \(error.localizedDescription)")
-                    self?.delegate?.transcriptionDidFail(error: "Gemini transcription failed: \(error.localizedDescription)")
+                    print("Cloud transcription error: \(error.localizedDescription)")
+                    self?.delegate?.transcriptionDidFail(error: "Cloud transcription failed: \(error.localizedDescription)")
                 }
             }
+        }
+        if provider == "60db" {
+            sixtydbTranscriber.transcribe(audioBuffer: audioBuffer, completion: completion)
+        } else {
+            geminiTranscriber.transcribe(audioBuffer: audioBuffer, completion: completion)
         }
     }
 }

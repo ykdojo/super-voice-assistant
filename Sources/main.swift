@@ -94,7 +94,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
         // Create menu
         let menu = NSMenu()
         menu.addItem(NSMenuItem(title: "Recording: Press Command+Option+Z", action: nil, keyEquivalent: ""))
-        menu.addItem(NSMenuItem(title: "Gemini Audio Recording: Press Command+Option+X", action: nil, keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "Cloud Audio Recording: Press Command+Option+X", action: nil, keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "History: Press Command+Option+A", action: nil, keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "Read Selected Text: Press Command+Option+S", action: nil, keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "Screen Recording: Press Command+Option+C", action: nil, keyEquivalent: ""))
@@ -129,13 +129,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
                 return
             }
 
-            // Prevent starting audio recording if Gemini audio recording is active
+            // Prevent starting audio recording if Cloud audio recording is active
             if self.geminiAudioManager.isRecording {
                 let notification = NSUserNotification()
                 notification.title = "Cannot Start Audio Recording"
-                notification.informativeText = "Gemini audio recording is currently active. Stop it first with Cmd+Option+X"
+                notification.informativeText = "Cloud audio recording is currently active. Stop it first with Cmd+Option+X"
                 NSUserNotificationCenter.default.deliver(notification)
-                print("⚠️ Blocked audio recording - Gemini audio recording is active")
+                print("⚠️ Blocked audio recording - Cloud audio recording is active")
                 return
             }
 
@@ -158,23 +158,23 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
         KeyboardShortcuts.onKeyUp(for: .geminiAudioRecording) { [weak self] in
             guard let self = self else { return }
 
-            // Prevent starting Gemini audio recording if screen recording is active
+            // Prevent starting Cloud audio recording if screen recording is active
             if self.screenRecorder.recording {
                 let notification = NSUserNotification()
-                notification.title = "Cannot Start Gemini Audio Recording"
+                notification.title = "Cannot Start Cloud Audio Recording"
                 notification.informativeText = "Screen recording is currently active. Stop it first with Cmd+Option+C"
                 NSUserNotificationCenter.default.deliver(notification)
-                print("⚠️ Blocked Gemini audio recording - screen recording is active")
+                print("⚠️ Blocked Cloud audio recording - screen recording is active")
                 return
             }
 
-            // Prevent starting Gemini audio recording if WhisperKit recording is active
+            // Prevent starting Cloud audio recording if WhisperKit recording is active
             if self.audioManager.isRecording {
                 let notification = NSUserNotification()
-                notification.title = "Cannot Start Gemini Audio Recording"
+                notification.title = "Cannot Start Cloud Audio Recording"
                 notification.informativeText = "WhisperKit recording is currently active. Stop it first with Cmd+Option+Z"
                 NSUserNotificationCenter.default.deliver(notification)
-                print("⚠️ Blocked Gemini audio recording - WhisperKit recording is active")
+                print("⚠️ Blocked Cloud audio recording - WhisperKit recording is active")
                 return
             }
 
@@ -295,13 +295,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
             return
         }
 
-        // Prevent starting screen recording if Gemini audio recording is active
+        // Prevent starting screen recording if Cloud audio recording is active
         if !screenRecorder.recording && geminiAudioManager.isRecording {
             let notification = NSUserNotification()
             notification.title = "Cannot Start Screen Recording"
-            notification.informativeText = "Gemini audio recording is currently active. Stop it first with Cmd+Option+X"
+            notification.informativeText = "Cloud audio recording is currently active. Stop it first with Cmd+Option+X"
             NSUserNotificationCenter.default.deliver(notification)
-            print("⚠️ Blocked screen recording - Gemini audio recording is active")
+            print("⚠️ Blocked screen recording - Cloud audio recording is active")
             return
         }
 

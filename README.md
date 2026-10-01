@@ -135,6 +135,38 @@ This is useful for correcting common speech-to-text misrecognitions, especially 
 2. Press **Command+Option+X** to start/stop recording
 3. Text automatically pastes at cursor
 
+#### Optional 60db cloud transcription
+
+[60db](https://docs.60db.ai/api-reference/stt) provides a transcription API
+authenticated with a workspace key. To use it for **Cmd+Option+X**, store the key
+in the macOS keychain and explicitly select the provider when launching:
+
+```bash
+security add-generic-password -U -s sixtydb-api-key -a "$USER" -w YOUR_WORKSPACE_KEY
+CLOUD_TRANSCRIPTION_PROVIDER=60db swift run SuperVoiceAssistant
+```
+
+The key can also be supplied through `SIXTYDB_API_KEY`. The existing key resolver
+is reused. With no provider override, cloud recording continues to use Gemini.
+Unsupported provider names produce an error rather than selecting another service.
+
+Recorded audio is sent directly to 60db as 16 kHz mono WAV after recording stops.
+Language is detected automatically. Uploads must be nonempty and at most 10 MB;
+requests time out after 60 seconds and are not automatically retried. A successful
+empty transcript is treated as silence. The existing text replacements, history
+and auto-paste flow is used. Local dictation, selected-text TTS and video
+transcription retain their existing providers.
+
+The native adapter check runs without service credentials or microphone access:
+
+```bash
+swiftc -parse-as-library SharedSources/SixtyDBAudioTranscriber.swift \
+  SharedSources/GeminiAudioTranscriber.swift SharedSources/GeminiAPIKey.swift \
+  SharedSources/MemoryMonitor.swift tests/test-sixtydb/Check.swift \
+  -o /tmp/check-sixtydb
+/tmp/check-sixtydb
+```
+
 **Transcription engines:**
 - **Parakeet v2**: ~110x realtime, 1.69% WER, English - recommended for speed
 - **Parakeet v3**: ~210x realtime, 1.8% WER, 25 languages

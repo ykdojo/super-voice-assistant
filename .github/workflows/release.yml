@@ -1,0 +1,38 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app
+
+      - name: Build app bundle
+        run: ./scripts/build-app-bundle.sh "${GITHUB_REF_NAME}"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SuperVoiceAssistant
+          path: dist/SuperVoiceAssistant.zip
+
+      - name: Create release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" dist/SuperVoiceAssistant.zip \
+            --title "${GITHUB_REF_NAME}" \
+            --generate-notes \
+            --notes "**Note:** This app is not notarized. After downloading, macOS will block it on first launch. Go to System Settings > Privacy & Security and click \"Open Anyway\", or run: \`xattr -d com.apple.quarantine SuperVoiceAssistant.app\`"

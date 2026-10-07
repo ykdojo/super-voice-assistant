@@ -7,6 +7,7 @@ import SharedModels
 @MainActor
 struct SettingsView: View {
     @StateObject private var modelState = ModelStateManager.shared
+    @AppStorage("showAppInDock") private var showAppInDock = false
     @State private var downloadingModels: Set<String> = []
     @State private var downloadProgress: [String: Double] = [:]
     @State private var downloadErrors: [String: String] = [:]
@@ -18,7 +19,7 @@ struct SettingsView: View {
         VStack(spacing: 0) {
             // Header
             VStack(alignment: .leading, spacing: 8) {
-                Text("Super Voice Assistant Settings")
+                Text("Model Selection")
                     .font(.title2)
                     .fontWeight(.semibold)
 
@@ -107,6 +108,21 @@ struct SettingsView: View {
                             }
                         )
                     }
+
+                    Divider()
+                        .padding(.vertical, 8)
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("App Visibility")
+                            .font(.title2)
+                            .fontWeight(.semibold)
+
+                        Toggle("Show in Dock", isOn: $showAppInDock)
+                        Text("When off, the app stays available in the menu bar.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .padding()
             }
@@ -132,7 +148,7 @@ struct SettingsView: View {
             }
             .padding()
         }
-        .frame(width: 600, height: 550)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {
             // If models haven't been checked yet (e.g., settings opened very quickly after app start)
             if modelState.isCheckingModels {
@@ -301,33 +317,6 @@ struct SettingsView: View {
                     modelState.setLoadingState(for: modelName, state: .notDownloaded)
                 }
             }
-        }
-    }
-}
-
-class SettingsWindowController: NSWindowController {
-    convenience init() {
-        let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 600, height: 500),
-            styleMask: [.titled, .closable, .miniaturizable],
-            backing: .buffered,
-            defer: false
-        )
-        window.title = "Settings"
-        window.center()
-        window.isReleasedWhenClosed = false  // Prevent window from being released when closed
-        
-        let hostingController = NSHostingController(rootView: SettingsView())
-        window.contentViewController = hostingController
-        
-        self.init(window: window)
-    }
-    
-    func showWindow() {
-        // Ensure window operations happen on main thread with proper timing
-        DispatchQueue.main.async { [weak self] in
-            self?.window?.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
         }
     }
 }

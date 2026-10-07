@@ -43,7 +43,6 @@ extension KeyboardShortcuts.Name {
 
 class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDelegate, GeminiAudioRecordingManagerDelegate {
     var statusItem: NSStatusItem!
-    var settingsWindow: SettingsWindowController?
     private var unifiedWindow: UnifiedManagerWindow?
 
     private var displayTimer: Timer?
@@ -61,8 +60,18 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
     private var screenRecorder = ScreenRecorder()
     private var currentVideoURL: URL?
     private var videoTranscriber = VideoTranscriber()
+    private var dockVisibilityObserver: NSObjectProtocol?
     
     func applicationDidFinishLaunching(_ notification: Notification) {
+        applyDockVisibility()
+        dockVisibilityObserver = NotificationCenter.default.addObserver(
+            forName: UserDefaults.didChangeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.applyDockVisibility()
+        }
+
         // Start memory monitoring to catch sporadic memory explosions
         MemoryMonitor.shared.start(intervalSeconds: 2.0)
 
@@ -423,6 +432,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, AudioTranscriptionManagerDel
                 }
             }
         }
+    }
+
+    private func applyDockVisibility() {
+        let showInDock = UserDefaults.standard.bool(forKey: "showAppInDock")
+        NSApp.setActivationPolicy(showInDock ? .regular : .accessory)
     }
 
     func pasteLastTranscription() {

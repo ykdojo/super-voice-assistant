@@ -12,19 +12,18 @@ class UnifiedManagerWindow: NSWindowController {
     private var tabViewController: NSTabViewController!
     private var historyViewController: TranscriptionHistoryViewController?
     private var statsViewController: StatsViewController?
-    private var settingsController: SettingsWindowController?
     private var audioDevicesViewController: AudioDevicesViewController?
     
     override init(window: NSWindow?) {
         // Create the main window
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 850, height: 600),
+            contentRect: NSRect(x: 0, y: 0, width: 850, height: 760),
             styleMask: [.titled, .closable, .resizable, .miniaturizable],
             backing: .buffered,
             defer: false
         )
         window.title = "Super Voice Assistant"
-        window.minSize = NSSize(width: 600, height: 400)
+        window.minSize = NSSize(width: 600, height: 600)
         
         super.init(window: window)
         
@@ -39,12 +38,8 @@ class UnifiedManagerWindow: NSWindowController {
         tabViewController = NSTabViewController()
         tabViewController.tabStyle = .toolbar
         
-        // Settings Tab - Use existing SettingsWindowController's view
-        if settingsController == nil {
-            settingsController = SettingsWindowController()
-        }
-        let settingsViewController = NSViewController()
-        settingsViewController.view = settingsController!.window!.contentView!
+        // Settings Tab
+        let settingsViewController = NSHostingController(rootView: SettingsView())
         let settingsTab = NSTabViewItem(viewController: settingsViewController)
         settingsTab.label = "Settings"
         settingsTab.image = NSImage(systemSymbolName: "gear", accessibilityDescription: "Settings")

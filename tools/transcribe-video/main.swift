@@ -126,7 +126,7 @@ guard let jsonData = try? JSONSerialization.data(withJSONObject: requestBody) el
 }
 
 // Make API request
-let apiURL = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=\(apiKey)")!
+let apiURL = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=\(apiKey)")!
 var request = URLRequest(url: apiURL)
 request.httpMethod = "POST"
 request.setValue("application/json", forHTTPHeaderField: "Content-Type")

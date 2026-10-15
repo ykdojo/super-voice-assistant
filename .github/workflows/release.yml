@@ -2,9 +2,16 @@ name: Release
 
 on:
   push:
+    branches:
+      - prebuilt-binaries
     tags:
       - "v*"
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (optional, defaults to next v0.1.x-test)"
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -15,11 +22,32 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Determine release version
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            TAG="${GITHUB_REF_NAME}"
+          elif [[ -n "${INPUT_TAG}" ]]; then
+            TAG="${INPUT_TAG}"
+          else
+            LATEST=$(gh release list --limit 20 --json tagName --jq '[.[] | select(.tagName | endswith("-test"))][0].tagName' || true)
+            if [[ "$LATEST" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)-test$ ]]; then
+              TAG="v${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.$((BASH_REMATCH[3] + 1))-test"
+            else
+              TAG="v0.1.1-test"
+            fi
+          fi
+          echo "Resolved release tag: ${TAG}"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode_15.4.app
 
       - name: Build app bundle
-        run: ./scripts/build-app-bundle.sh "${GITHUB_REF_NAME}"
+        run: ./scripts/build-app-bundle.sh "${{ steps.version.outputs.tag }}"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -28,11 +56,12 @@ jobs:
           path: dist/SuperVoiceAssistant.zip
 
       - name: Create release
-        if: startsWith(github.ref, 'refs/tags/v')
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
         run: |
-          gh release create "${GITHUB_REF_NAME}" dist/SuperVoiceAssistant.zip \
-            --title "${GITHUB_REF_NAME}" \
+          gh release create "${TAG}" dist/SuperVoiceAssistant.zip \
+            --target "${GITHUB_SHA}" \
+            --title "${TAG}" \
             --generate-notes \
             --notes "**Note:** This app is not notarized. After downloading, macOS will block it on first launch. Go to System Settings > Privacy & Security and click \"Open Anyway\", or run: \`xattr -d com.apple.quarantine SuperVoiceAssistant.app\`"

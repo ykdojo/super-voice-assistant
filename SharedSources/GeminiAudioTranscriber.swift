@@ -111,8 +111,8 @@ public class GeminiAudioTranscriber {
             return
         }
 
-        // Make API request using Gemini 2.5 Flash
-        let apiURL = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=\(apiKey)")!
+        // Make API request using Gemini 3.8 Flash
+        let apiURL = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=\(apiKey)")!
         var request = URLRequest(url: apiURL)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")

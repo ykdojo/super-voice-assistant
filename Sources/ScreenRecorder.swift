@@ -5,11 +5,25 @@ class ScreenRecorder {
     private var outputURL: URL?
     private var isRecording = false
 
+    /// Configure Process to invoke ffmpeg even when launched as a GUI app with minimal PATH
+    private func configureFFmpegProcess(_ process: Process, arguments: [String]) {
+        let candidatePaths = [
+            "/opt/homebrew/bin/ffmpeg",
+            "/usr/local/bin/ffmpeg"
+        ]
+        if let path = candidatePaths.first(where: { FileManager.default.isExecutableFile(atPath: $0) }) {
+            process.executableURL = URL(fileURLWithPath: path)
+            process.arguments = arguments
+        } else {
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+            process.arguments = ["ffmpeg"] + arguments
+        }
+    }
+
     /// Detect the main screen capture device index by parsing ffmpeg's device list
     private func detectMainScreenDeviceIndex() -> Int? {
         let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        process.arguments = ["ffmpeg", "-f", "avfoundation", "-list_devices", "true", "-i", ""]
+        configureFFmpegProcess(process, arguments: ["-f", "avfoundation", "-list_devices", "true", "-i", ""])
 
         let stderrPipe = Pipe()
         process.standardError = stderrPipe
@@ -82,12 +96,10 @@ class ScreenRecorder {
 
         // Create ffmpeg process
         let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
         let videoDevice = String(videoDeviceIndex)
         let audioDevice = "default"
 
-        process.arguments = [
-            "ffmpeg",
+        configureFFmpegProcess(process, arguments: [
             "-f", "avfoundation",
             "-capture_cursor", "1",
             "-i", "\(videoDevice):\(audioDevice)",
@@ -96,7 +108,7 @@ class ScreenRecorder {
             "-pix_fmt", "yuv420p",
             "-y",
             outputPath.path
-        ]
+        ])
 
         print("🎥 Detected video device: \(videoDevice) (Capture screen 0)")
         print("🎤 Using audio device: \(audioDevice)")
